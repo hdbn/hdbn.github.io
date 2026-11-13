@@ -1,0 +1,101 @@
+---
+import Base from '../../layouts/Base.astro';
+import { CAREER, DEGREES } from '../../data/career';
+import { SERVICE, type Service } from '../../data/service';
+import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = useTranslations(locale);
+
+// Committees by role, each event once with its years, newest first:
+// "CPM 2025, 2022 (co-chair), 2020"; a standing committee as "CPM 2024–present".
+const roles: Service['role'][] = ['steering', 'organizing', 'pc'];
+const service = roles
+  .map((role) => {
+    const byEvent = new Map<string, Service[]>();
+    for (const entry of SERVICE.filter((s) => s.role === role)) {
+      byEvent.set(entry.event, [...(byEvent.get(entry.event) ?? []), entry]);
+    }
+    const events = [...byEvent].map(([event, entries]) => {
+      const sorted = entries.sort((a, b) => b.year - a.year);
+      const years = sorted.map((e) => ({
+        year: role === 'steering' ? `${e.year}–${e.to ?? t.cv.present}` : `${e.year}`,
+        chair: e.chair && t.serviceChair[e.chair],
+        url: e.url,
+      }));
+      return { event, latest: sorted[0].year, years };
+    });
+    return { role, events: events.sort((a, b) => b.latest - a.latest || a.event.localeCompare(b.event)) };
+  })
+  .filter(({ events }) => events.length > 0);
+---
+
+<Base locale={locale} title={t.cv.heading} description={t.cv.description}>
+  <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.cv.heading}</h1>
+
+  <section class="mt-10">
+    <h2 class="section-heading">{t.cv.career}</h2>
+    <ul class="mt-3">
+      {CAREER.map(({ from, to, position, organization }) => (
+        <li class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
+          <span class="w-28 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">
+            {from}–{to ?? t.cv.present}{locale === 'ja' && to ? '年' : ''}
+          </span>
+          <p class="leading-snug text-ink">
+            <span class="font-semibold">{position[locale]}</span>
+            <span class="text-ink-muted">{locale === 'en' ? ', ' : '　'}{organization[locale]}</span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="section-heading">{t.cv.education}</h2>
+    <ul class="mt-3">
+      {DEGREES.map(({ year, degree, university }) => (
+        <li class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
+          <span class="w-28 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">{year}{locale === 'ja' ? '年' : ''}</span>
+          <p class="leading-snug text-ink">
+            <span class="font-semibold">{degree[locale]}</span>
+            <span class="text-ink-muted">{locale === 'en' ? ', ' : '　'}{university[locale]}</span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {service.length > 0 && (
+    <section class="mt-14">
+      <h2 class="section-heading">{t.cv.service}</h2>
+      <dl class="mt-3">
+        {service.map(({ role, events }) => (
+          <div class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
+            <dt class="w-44 shrink-0 pt-0.5 text-sm text-ink-muted">{t.serviceRole[role]}</dt>
+            <dd class="leading-relaxed text-ink" lang="en">
+              {events.map(({ event, years }, i) => (
+                <>
+                  {i > 0 && <span class="text-ink-muted">; </span>}
+                  <span class="font-semibold">{event}</span>{' '}
+                  {years.map(({ year, chair, url }, j) => (
+                    <>
+                      {j > 0 && <span class="text-ink-muted">, </span>}
+                      {url ? (
+                        <a href={url} class="tabular-nums text-ink-muted underline decoration-ink-muted/30 underline-offset-2 hover:text-brand hover:decoration-brand">{year}</a>
+                      ) : (
+                        <span class="tabular-nums text-ink-muted">{year}</span>
+                      )}
+                      {chair && <span class="text-ink-muted" lang={locale}> ({chair})</span>}
+                    </>
+                  ))}
+                </>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )}
+</Base>

@@ -8,9 +8,10 @@ export const ui = {
     langName: 'English',
     description:
       'Hideo Bannai, Professor at the M&D Data Science Center, Institute of Biomedical Engineering, Institute of Science Tokyo. String algorithms, data compression and combinatorics on words.',
-    nav: { about: 'About', publications: 'Publications', talks: 'Talks' },
+    nav: { home: 'Home', publications: 'Publications', talks: 'Talks', cv: 'CV' },
     home: {
-      heading: 'About',
+      // Not shown: the page opens with the About text, under the name.
+      heading: 'Hideo Bannai',
       talks: 'Selected talks',
       allTalks: 'All selected talks',
       publications: 'Recent publications',
@@ -27,7 +28,7 @@ export const ui = {
     },
     publicationType: {
       journal: 'Journal',
-      proceedings: 'Conference',
+      proceedings: 'Proceedings',
       book: 'Book chapter',
       preprint: 'Preprint',
       report: 'Report',
@@ -40,13 +41,27 @@ export const ui = {
       intro: 'Keynotes, invited talks, lectures and other talks.',
     },
     talkKind: { keynote: 'Keynote', invited: 'Invited talk', lecture: 'Lecture' },
+    cv: {
+      heading: 'CV',
+      description: 'Positions, education and committee work of Hideo Bannai.',
+      career: 'Career',
+      education: 'Education',
+      service: 'Committees',
+      present: 'present',
+    },
+    serviceRole: {
+      steering: 'Steering committee',
+      organizing: 'Organizing committee',
+      pc: 'Program committee',
+    },
+    serviceChair: { chair: 'chair', 'co-chair': 'co-chair' },
   },
   ja: {
     langName: '日本語',
     description: '坂内英夫(東京科学大学 国際医工共創研究院 M&Dデータ科学センター 教授)。文字列アルゴリズム、データ圧縮、文字列の組合せ論。',
-    nav: { about: 'プロフィール', publications: '論文', talks: '講演' },
+    nav: { home: 'ホーム', publications: '論文', talks: '講演', cv: '経歴' },
     home: {
-      heading: 'プロフィール',
+      heading: '坂内英夫',
       talks: '主な講演',
       allTalks: '講演一覧',
       publications: '最近の論文',
@@ -63,7 +78,7 @@ export const ui = {
     },
     publicationType: {
       journal: '論文誌',
-      proceedings: '国際会議',
+      proceedings: '会議録',
       book: '書籍',
       preprint: 'プレプリント',
       report: '報告書',
@@ -76,6 +91,20 @@ export const ui = {
       intro: '基調講演、招待講演、講義など。',
     },
     talkKind: { keynote: '基調講演', invited: '招待講演', lecture: '講義' },
+    cv: {
+      heading: '経歴',
+      description: '坂内英夫の職歴・学歴・委員歴。',
+      career: '職歴',
+      education: '学歴',
+      service: '委員',
+      present: '現在',
+    },
+    serviceRole: {
+      steering: 'ステアリング委員',
+      organizing: '組織委員',
+      pc: 'プログラム委員',
+    },
+    serviceChair: { chair: '委員長', 'co-chair': '共同委員長' },
   },
 } as const;
 

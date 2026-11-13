@@ -22,9 +22,9 @@ const recent = PUBLICATIONS.slice(0, 5);
 
 <Base locale={locale} description={t.description}>
   <section>
-    <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.home.heading}</h1>
+    <h1 class="sr-only">{t.home.heading}</h1>
     <div
-      class="mt-5 max-w-2xl space-y-4 text-[1.05rem] leading-relaxed [&_a]:font-medium [&_a]:text-brand [&_a]:underline [&_a]:decoration-brand/30 [&_a]:underline-offset-2 [&_a:hover]:decoration-brand [&_li]:ml-5 [&_ul]:list-disc"
+      class="max-w-2xl space-y-4 text-[1.05rem] leading-relaxed [&_a]:font-medium [&_a]:text-brand [&_a]:underline [&_a]:decoration-brand/30 [&_a]:underline-offset-2 [&_a:hover]:decoration-brand [&_li]:ml-5 [&_ul]:list-disc"
     >
       <About />
     </div>

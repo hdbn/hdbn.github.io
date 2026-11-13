@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: withastro/action@v3
         with:
-          # Astro 7 needs Node 22.12 or later.
+          # The latest Node 22, which Astro 7 needs (22.23 or later on the sandbox's check).
           node-version: 22
 
   deploy:

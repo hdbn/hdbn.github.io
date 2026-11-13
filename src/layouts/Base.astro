@@ -25,9 +25,10 @@ const absolute = (target: Locale) => new URL(localizedPath(target, path), Astro.
 const switchPath = noindex ? '/' : path;
 
 const nav = [
-  { path: '/', label: t.nav.about },
+  { path: '/', label: t.nav.home },
   { path: '/publications/', label: t.nav.publications },
   { path: '/talks/', label: t.nav.talks },
+  { path: '/cv/', label: t.nav.cv },
 ];
 ---
 
