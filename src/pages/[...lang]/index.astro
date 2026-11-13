@@ -1,0 +1,54 @@
+---
+import type { MarkdownInstance } from 'astro';
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import PublicationCard from '../../components/PublicationCard.astro';
+import TalkItem from '../../components/TalkItem.astro';
+import { TALKS } from '../../data/talks';
+import { PUBLICATIONS } from '../../lib/bibtex';
+import { localeStaticPaths, localizedPath, useTranslations, type Locale } from '../../lib/i18n';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = useTranslations(locale);
+
+// The About text, one Markdown file per language: src/data/about/<locale>.md.
+const about = import.meta.glob<MarkdownInstance<Record<string, never>>>('../../data/about/*.md', { eager: true });
+const About = about[`../../data/about/${locale}.md`].Content;
+
+const recent = PUBLICATIONS.slice(0, 5);
+---
+
+<Base locale={locale} description={t.description}>
+  <section>
+    <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.home.heading}</h1>
+    <div
+      class="mt-5 max-w-2xl space-y-4 text-[1.05rem] leading-relaxed [&_a]:font-medium [&_a]:text-brand [&_a]:underline [&_a]:decoration-brand/30 [&_a]:underline-offset-2 [&_a:hover]:decoration-brand [&_li]:ml-5 [&_ul]:list-disc"
+    >
+      <About />
+    </div>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="section-heading">{t.home.talks}</h2>
+    <ul class="mt-3">
+      {TALKS.slice(0, 3).map((talk) => <TalkItem locale={locale} talk={talk} />)}
+    </ul>
+    <a href={localizedPath(locale, '/talks/')} class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+      {t.home.allTalks}
+      <Icon name="lucide:arrow-right" class="h-4 w-4" />
+    </a>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="section-heading">{t.home.publications}</h2>
+    <ul class="mt-2">
+      {recent.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
+    </ul>
+    <a href={localizedPath(locale, '/publications/')} class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+      {t.home.allPublications}
+      <Icon name="lucide:arrow-right" class="h-4 w-4" />
+    </a>
+  </section>
+</Base>

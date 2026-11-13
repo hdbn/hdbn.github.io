@@ -1,0 +1,92 @@
+---
+import { Image } from 'astro:assets';
+import { Icon } from 'astro-icon/components';
+import { PROFILE, PROFILE_LINKS } from '../data/profile';
+import { localizedPath, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+// The name in the page's language, with the other one under it.
+const other: Locale = locale === 'en' ? 'ja' : 'en';
+
+
+// src/assets/portrait.jpg, cut by scripts/portrait.mjs; the initials stand in
+// without one.
+const portrait = Object.values(
+  import.meta.glob<{ default: ImageMetadata }>('../assets/portrait.jpg', { eager: true }),
+)[0]?.default;
+---
+
+<div class="flex items-center gap-4 md:block">
+  {portrait ? (
+    <Image
+      src={portrait}
+      alt={PROFILE.name[locale]}
+      width={320}
+      height={320}
+      loading="eager"
+      class="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-card shadow-sm md:h-40 md:w-40"
+    />
+  ) : (
+    <div
+      class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-2xl font-bold tracking-wide text-white md:h-40 md:w-40 md:text-5xl"
+      aria-hidden="true"
+    >
+      {PROFILE.initials}
+    </div>
+  )}
+  <div class="md:mt-6">
+    <a href={localizedPath(locale, '/')} class="block text-xl font-bold tracking-tight text-ink md:text-2xl">{PROFILE.name[locale]}</a>
+    <p class="text-sm text-ink-muted" lang={other}>{PROFILE.name[other]}</p>
+  </div>
+</div>
+
+<p class="mt-4 text-sm leading-relaxed text-ink">
+  <span class="font-semibold">{PROFILE.position[locale]}</span>
+  {PROFILE.affiliations[locale].map(({ name, url }) => (
+    <>
+      <br />
+      <a href={url} class="text-ink-muted hover:text-brand">{name}</a>
+    </>
+  ))}
+</p>
+
+<ul class="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm md:block md:space-y-2">
+  <li>
+    {/* Opens a new mail; the address is put together only then, by the script below. */}
+    <button
+      type="button"
+      class="email-reveal inline-flex cursor-pointer items-center gap-2 text-ink-muted hover:text-brand"
+      data-bbwt={PROFILE.emailBbwt}
+      title={locale === 'en' ? 'Write an email' : 'メールを書く'}
+    >
+      <Icon name="lucide:mail" class="h-4 w-4 shrink-0" />
+      <span>{locale === 'en' ? 'Email' : 'メール'}</span>
+    </button>
+  </li>
+  {PROFILE_LINKS.map(({ label, href, icon }) => (
+    <li>
+      <a href={href[locale]} class="inline-flex items-center gap-2 text-ink-muted hover:text-brand">
+        <Icon name={icon} class="h-4 w-4 shrink-0" />
+        {label[locale]}
+      </a>
+    </li>
+  ))}
+</ul>
+
+<script>
+  import { inverseBbwt } from '../lib/bbwt';
+
+  // Until it is clicked, the address is nowhere: not in the HTML and not in
+  // the page a crawler renders, since crawlers that run scripts do not go
+  // round clicking things. A click opens a new mail to it and leaves the
+  // page as it was.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.email-reveal')) {
+    button.addEventListener('click', () => {
+      location.href = `mailto:${inverseBbwt(button.dataset.bbwt ?? '')}`;
+    });
+  }
+</script>

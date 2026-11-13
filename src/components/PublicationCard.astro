@@ -1,0 +1,95 @@
+---
+// Taken from the DSCalgo lab site.
+import { Icon } from 'astro-icon/components';
+import { publicationAnchor, venueWithYear, type Publication } from '../lib/bibtex';
+import { useTranslations, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+  publication: Publication;
+}
+
+const { locale, publication } = Astro.props;
+const t = useTranslations(locale);
+
+const badgeColor: Record<Publication['type'], string> = {
+  journal: 'bg-brand text-white',
+  proceedings: 'bg-brand-surface text-brand',
+  preprint: 'bg-black/5 text-ink-muted',
+  report: 'bg-black/5 text-ink-muted',
+  thesis: 'bg-black/5 text-ink-muted',
+  book: 'bg-black/5 text-ink-muted',
+};
+
+const linkIcons: { key: keyof Publication['links']; icon: string }[] = [
+  { key: 'pdf', icon: 'lucide:file-text' },
+  { key: 'code', icon: 'lucide:code' },
+  { key: 'poster', icon: 'lucide:image' },
+  { key: 'doi', icon: 'academicons:doi' },
+  { key: 'arxiv', icon: 'academicons:arxiv' },
+];
+
+const venueText = venueWithYear(publication.venue, publication.year);
+const journalVersionText = publication.journalVersion
+  ? venueWithYear(publication.journalVersion.venue, publication.journalVersion.year)
+  : undefined;
+---
+
+<li id={publicationAnchor(publication.key)} class="pub-item border-b border-line py-3.5" data-pub-type={publication.type}>
+  <h3 class="leading-snug font-semibold text-ink">
+    <span class:list={['mr-1.5 inline-block rounded-full px-2 py-0.5 align-middle text-xs font-semibold', badgeColor[publication.type]]}>
+      {t.publicationType[publication.type]}
+    </span>
+    {publication.title}
+  </h3>
+  <p class="mt-1 text-sm text-ink-muted">
+    {publication.authors.map((author, i) => (
+      <>
+        {i > 0 && ', '}
+        <span class:list={{ 'font-semibold text-ink': author.isMe }}>{author.name}</span>
+      </>
+    ))}
+    {venueText && <span class="italic"> — {venueText}</span>}
+  </p>
+  {publication.note && (
+    <p class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-accent">
+      <Icon name="lucide:award" class="h-3.5 w-3.5" />
+      {publication.note}
+    </p>
+  )}
+  {publication.journalVersion && (
+    <p class="mt-1 text-xs text-ink-muted">
+      {t.publications.journalVersion}{' '}
+      {publication.journalVersion.url ? (
+        <a href={publication.journalVersion.url} class="text-brand hover:underline">
+          {journalVersionText}
+        </a>
+      ) : (
+        journalVersionText
+      )}
+    </p>
+  )}
+  <div class="mt-1.5 flex flex-wrap items-center gap-3">
+    {linkIcons.map(({ key, icon }) => {
+      const href = publication.links[key];
+      if (!href) return null;
+      return (
+        <a href={href} class="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+          <Icon name={icon} class="h-3.5 w-3.5" />
+          {t.links[key]}
+        </a>
+      );
+    })}
+    {/* Each format the slides come in: a PDF opens, PowerPoint downloads. */}
+    {publication.slides.map(({ url, format }) => (
+      <a href={url} class="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+        <Icon name="lucide:presentation" class="h-3.5 w-3.5" />
+        {t.links.slides} ({format})
+      </a>
+    ))}
+    <details class="basis-full">
+      <summary class="cursor-pointer text-xs font-medium text-brand hover:underline">{t.publications.bibtex}</summary>
+      <pre class="mt-2 overflow-x-auto rounded-lg bg-black/[0.03] p-3 text-xs whitespace-pre text-ink-muted">{publication.rawBibtex}</pre>
+    </details>
+  </div>
+</li>

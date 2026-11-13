@@ -1,0 +1,108 @@
+---
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import PublicationCard from '../../components/PublicationCard.astro';
+import { PUBLICATIONS, groupByYear, type Publication } from '../../lib/bibtex';
+import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = useTranslations(locale);
+
+const grouped = groupByYear(PUBLICATIONS);
+
+// Peer-reviewed first, then the rest.
+const typeOrder: Publication['type'][] = ['journal', 'proceedings', 'book', 'preprint', 'report', 'thesis'];
+const types = typeOrder.filter((type) => PUBLICATIONS.some((p) => p.type === type));
+---
+
+<Base locale={locale} title={t.publications.heading} description={t.publications.description}>
+  <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.publications.heading}</h1>
+
+  <div class="publication-list mt-6">
+    <div class="mb-4 flex flex-wrap items-center gap-3 text-sm">
+      <label class="relative flex-1 basis-64">
+        <span class="sr-only">{t.publications.searchLabel}</span>
+        <input
+          type="search"
+          class="pub-search w-full rounded-full border border-line bg-card py-2 pr-4 pl-9 text-[16px] text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none"
+          placeholder={t.publications.searchPlaceholder}
+          autocomplete="off"
+        />
+        <Icon name="lucide:search" class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+      </label>
+      <span class="pub-count text-ink-muted tabular-nums">{PUBLICATIONS.length}</span>
+    </div>
+
+    <div class="mb-8 flex flex-wrap items-center gap-2 text-sm">
+      {types.map((type) => (
+        <button
+          type="button"
+          class="pub-filter-chip cursor-pointer rounded-full border border-line bg-card px-2.5 py-1 text-xs font-medium text-ink-muted aria-pressed:border-brand aria-pressed:bg-brand-surface aria-pressed:text-brand"
+          data-value={type}
+          aria-pressed="false"
+        >
+          {t.publicationType[type]}
+        </button>
+      ))}
+    </div>
+
+    <p class="pub-no-matches hidden text-ink-muted">{t.publications.noMatches}</p>
+
+    <div class="space-y-8">
+      {grouped.map(({ year, items }) => (
+        <section class="pub-year">
+          <h2 class="section-heading">{year}</h2>
+          <ul class="mt-2">
+            {items.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
+          </ul>
+        </section>
+      ))}
+    </div>
+  </div>
+</Base>
+
+<script>
+  const list = document.querySelector<HTMLElement>('.publication-list')!;
+  const items = [...list.querySelectorAll<HTMLElement>('.pub-item')];
+  const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  // The visible title, authors and venue already hold the searchable words.
+  const searchable = new Map(
+    items.map((item) => [
+      item,
+      fold([item.querySelector('h3')?.textContent, ...[...item.querySelectorAll(':scope > p')].map((p) => p.textContent), item.closest('.pub-year')?.querySelector('h2')?.textContent].join(' ')),
+    ]),
+  );
+  const search = list.querySelector<HTMLInputElement>('.pub-search')!;
+  const count = list.querySelector<HTMLElement>('.pub-count')!;
+  const noMatches = list.querySelector<HTMLElement>('.pub-no-matches')!;
+  const chips = [...list.querySelectorAll<HTMLButtonElement>('.pub-filter-chip')];
+
+  function apply() {
+    // No chip pressed means every type, not none.
+    const pressed = new Set(chips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value));
+    // Every word has to appear somewhere, so typing more narrows the list.
+    const words = fold(search.value).split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const item of items) {
+      const text = searchable.get(item) ?? '';
+      const visible = (pressed.size === 0 || pressed.has(item.dataset.pubType)) && words.every((word) => text.includes(word));
+      item.hidden = !visible;
+      if (visible) shown++;
+    }
+    for (const year of list.querySelectorAll<HTMLElement>('.pub-year')) {
+      year.hidden = !year.querySelector('.pub-item:not([hidden])');
+    }
+    count.textContent = String(shown);
+    noMatches.classList.toggle('hidden', shown > 0);
+  }
+
+  for (const chip of chips) {
+    chip.addEventListener('click', () => {
+      chip.ariaPressed = chip.ariaPressed === 'true' ? 'false' : 'true';
+      apply();
+    });
+  }
+  search.addEventListener('input', apply);
+</script>

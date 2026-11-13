@@ -1,0 +1,15 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+{/* One page for both languages: GitHub Pages serves this one 404.html for any address. */}
+<Base locale="en" title="Page not found" description="The page you are looking for may have moved." noindex>
+  <h1 class="text-3xl font-bold tracking-tight text-ink">Page not found</h1>
+  <p class="mt-4 text-ink-muted">
+    The page you are looking for may have moved, or the address may be wrong.{' '}
+    <a href="/" class="text-brand hover:underline">Back to the home page</a>.
+  </p>
+  <p class="mt-4 text-ink-muted" lang="ja">
+    お探しのページは移動したか、アドレスが間違っている可能性があります。<a href="/ja/" class="text-brand hover:underline">トップページへ</a>
+  </p>
+</Base>

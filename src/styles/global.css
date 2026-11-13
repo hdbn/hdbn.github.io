@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@theme {
+  /* Inter has no Japanese, so Japanese falls through to the system's own
+     face rather than a web font several megabytes large. */
+  --font-sans: 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', Meiryo, system-ui, sans-serif;
+
+  --color-paper: #f7f8fa;
+  --color-card: #ffffff;
+  --color-ink: #16202c;
+  --color-ink-muted: #5a6573;
+  --color-line: #e3e7ec;
+  --color-brand: #1f4e79;
+  --color-brand-soft: #4f8fbf;
+  --color-brand-surface: #e8f0f8;
+  /* Dark enough to carry small text on paper. */
+  --color-accent: #a8470c;
+  --color-accent-surface: #fbeadd;
+}
+
+@layer base {
+  html {
+    font-size: 17px;
+    /* The publication list is far taller than the home page; laying out the
+       scrollbar everywhere keeps the columns from shifting between them. */
+    overflow-y: scroll;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+}
+
+@layer components {
+  /* A section heading: small, spaced capitals over a rule. */
+  .section-heading {
+    @apply flex items-center gap-3 text-xs font-semibold tracking-[0.14em] text-brand uppercase;
+  }
+  .section-heading::after {
+    content: '';
+    @apply h-px flex-1 bg-line;
+  }
+}

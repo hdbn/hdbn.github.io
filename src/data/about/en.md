@@ -1,0 +1,1 @@
+I work on algorithms and data structures for strings: pattern matching, text compression, computation on compressed data, and combinatorics on words. See also the [DSCalgo lab](https://algo.dsc.bme.isct.ac.jp/en/) page.

@@ -1,0 +1,19 @@
+---
+import Base from '../../layouts/Base.astro';
+import TalkItem from '../../components/TalkItem.astro';
+import { TALKS } from '../../data/talks';
+import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = useTranslations(locale);
+---
+
+<Base locale={locale} title={t.talks.heading} description={t.talks.description}>
+  <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.talks.heading}</h1>
+  <p class="mt-4 max-w-2xl text-ink-muted">{t.talks.intro}</p>
+  <ul class="mt-6">
+    {TALKS.map((talk) => <TalkItem locale={locale} talk={talk} />)}
+  </ul>
+</Base>

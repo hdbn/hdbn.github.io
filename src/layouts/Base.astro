@@ -1,0 +1,108 @@
+---
+import '../styles/global.css';
+import Profile from '../components/Profile.astro';
+import { PROFILE } from '../data/profile';
+import { locales, localizedPath, logicalPath, ogLocale, useTranslations, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+  /** The page's own name; the home page has none. */
+  title?: string;
+  description: string;
+  noindex?: boolean;
+}
+
+const { locale, title, description, noindex = false } = Astro.props;
+const t = useTranslations(locale);
+const name = PROFILE.name[locale];
+const fullTitle = title ? `${title} | ${name}` : name;
+// With a slash, as GitHub Pages serves publications/index.html: the bare
+// path only redirects there.
+const path = logicalPath(Astro.url.pathname);
+const absolute = (target: Locale) => new URL(localizedPath(target, path), Astro.site).href;
+// The not-found page has no Japanese twin, so from there each language's
+// switch goes to its home page.
+const switchPath = noindex ? '/' : path;
+
+const nav = [
+  { path: '/', label: t.nav.about },
+  { path: '/publications/', label: t.nav.publications },
+  { path: '/talks/', label: t.nav.talks },
+];
+---
+
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex ? (
+      <meta name="robots" content="noindex" />
+    ) : (
+      <>
+        <link rel="canonical" href={absolute(locale)} />
+        {/* The same page in the other language, for search engines. */}
+        {locales.map((other) => <link rel="alternate" hreflang={other} href={absolute(other)} />)}
+        <link rel="alternate" hreflang="x-default" href={absolute('en')} />
+      </>
+    )}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={absolute(locale)} />
+    <meta property="og:locale" content={ogLocale[locale]} />
+  </head>
+  <body class="min-h-screen">
+    <div class="h-1 bg-gradient-to-r from-brand via-brand-soft to-accent"></div>
+    <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:grid md:grid-cols-[15rem_1fr] md:gap-12 md:py-14 lg:gap-16">
+      <aside class="md:sticky md:top-14 md:self-start">
+        <Profile locale={locale} />
+      </aside>
+
+      <div class="mt-8 min-w-0 md:mt-0">
+        <nav class="flex items-end justify-between gap-4 border-b border-line">
+          <ul class="-mb-px flex gap-6 text-sm font-medium">
+            {nav.map((item) => (
+              <li>
+                <a
+                  href={localizedPath(locale, item.path)}
+                  class:list={[
+                    'inline-block border-b-2 pb-3',
+                    path === item.path ? 'border-brand text-brand' : 'border-transparent text-ink-muted hover:text-ink',
+                  ]}
+                  aria-current={path === item.path ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <ul class="mb-2 flex shrink-0 items-center gap-1 rounded-full bg-brand-surface p-1 text-xs font-semibold">
+            {locales.map((other) => (
+              <li>
+                <a
+                  href={localizedPath(other, switchPath)}
+                  hreflang={other}
+                  lang={other}
+                  aria-current={other === locale ? 'page' : undefined}
+                  class:list={['block rounded-full px-2.5 py-1', other === locale ? 'bg-brand text-white' : 'text-brand']}
+                >
+                  {other === 'en' ? 'EN' : '日本語'}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <main class="pt-8">
+          <slot />
+        </main>
+        <footer class="mt-16 border-t border-line pt-6 text-xs text-ink-muted">
+          © {new Date().getFullYear()} {PROFILE.name.en}
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>
