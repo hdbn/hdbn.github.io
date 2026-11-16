@@ -11,6 +11,7 @@ import inter600 from '@fontsource/inter/files/inter-latin-600-normal.woff2?url';
 import inter700 from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
 import LangSwitch from '../components/LangSwitch.astro';
 import Profile from '../components/Profile.astro';
+import { CLOUDFLARE_ANALYTICS_TOKEN } from '../data/analytics';
 import { PROFILE } from '../data/profile';
 import { locales, localizedPath, logicalPath, ogLocale, useTranslations, type Locale } from '../lib/i18n';
 
@@ -74,6 +75,17 @@ const nav = [
         every page change the text vanished for a moment. Scripts that set up
         a page run again on astro:page-load. */}
     <ClientRouter />
+    {/* Counting visits, on the published site only. The page swaps above
+        change the address without loading a page; the beacon counts each
+        one as a visit to that page (spa). */}
+    {import.meta.env.PROD && CLOUDFLARE_ANALYTICS_TOKEN && (
+      <script
+        is:inline
+        type="module"
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: CLOUDFLARE_ANALYTICS_TOKEN, spa: true })}
+      ></script>
+    )}
   </head>
   <body class="min-h-screen">
     <div class="h-1 bg-gradient-to-r print:hidden from-brand via-brand-soft to-accent"></div>
