@@ -59,9 +59,12 @@ export const TALKS: Talk[] = [
   {
     title: 'Repetitions in Strings: A "Constant" Problem',
     event: '32nd Annual Symposium on Combinatorial Pattern Matching (CPM 2021)',
-    // cpm2021.ii.uni.wroc.pl no longer answers (November 2026).
+    // cpm2021.ii.uni.wroc.pl no longer answers (November 2026). The site
+    // listed the talk under Keynotes (keynote.shtml), though the paper in
+    // the proceedings is titled "(Invited Talk)"; the conference's own word
+    // goes here, as for SPIRE 2025.
     date: '2021-07-07',
-    kind: 'invited',
+    kind: 'keynote',
     slides: '2021-cpm-repetitions',
     bibKey: 'DBLP:conf/cpm/Bannai21',
   },
