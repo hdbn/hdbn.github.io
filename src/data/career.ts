@@ -123,6 +123,7 @@ export const EDUCATION: {
     },
   },
   {
+    from: "1998-04",
     date: "2000-03",
     title: { en: "M.Sc. in Information Science", ja: "修士(理学)" },
     place: {
@@ -131,6 +132,10 @@ export const EDUCATION: {
     },
   },
   {
+    // Entered in April 1994 by way of the College of Arts and Sciences
+    // (教養学部 理科一類), as every University of Tokyo undergraduate does,
+    // and went on to the Department of Information Science in April 1996.
+    from: "1994-04",
     date: "1998-03",
     title: { en: "B.Sc. in Information Science", ja: "学士(理学)" },
     place: {
