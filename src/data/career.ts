@@ -127,7 +127,7 @@ export const EDUCATION: {
     title: { en: "M.Sc. in Information Science", ja: "修士(理学)" },
     place: {
       en: "Department of Information Science, Graduate School of Science, The University of Tokyo",
-      ja: "東京大学 大学院理学系研究科 情報科学専攻 修士課程",
+      ja: "東京大学 大学院理学系研究科 情報科学専攻",
     },
   },
   {
