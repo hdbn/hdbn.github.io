@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { CAREER, DEGREES } from '../../data/career';
+import { CAREER, EDUCATION } from '../../data/career';
 import { SERVICE, type Service } from '../../data/service';
 import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
 
@@ -105,15 +105,15 @@ const service = roles
   <section class="card mt-10">
     <h2 class="section-heading">{t.cv.education}</h2>
     <ol class="mt-5">
-      {DEGREES.map(({ date, degree, university }, i) => (
+      {EDUCATION.map(({ from, date, title, place }, i) => (
         <li class="relative pb-7 pl-7 last:pb-0">
-          {i < DEGREES.length - 1 && <span class="absolute top-4 bottom-0 left-[5px] w-0.5 bg-line" aria-hidden="true" />}
+          {i < EDUCATION.length - 1 && <span class="absolute top-4 bottom-0 left-[5px] w-0.5 bg-line" aria-hidden="true" />}
           <span class="absolute top-1.5 left-0 h-3 w-3 rounded-full border-2 border-brand-soft bg-card" aria-hidden="true" />
           <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-            <p class="leading-snug font-semibold text-ink">{degree[locale]}</p>
-            <span class="text-sm whitespace-nowrap text-ink-muted tabular-nums">{when(date)}</span>
+            <p class="leading-snug font-semibold text-ink">{title[locale]}</p>
+            <span class="text-sm whitespace-nowrap text-ink-muted tabular-nums">{from ? span(from, date) : when(date)}</span>
           </div>
-          <p class="mt-0.5 text-sm text-ink-muted">{university[locale]}</p>
+          <p class="mt-0.5 text-sm text-ink-muted">{place[locale]}</p>
         </li>
       ))}
     </ol>

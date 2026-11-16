@@ -41,9 +41,10 @@ export const CAREER: {
     },
   },
   {
-    // The title 助教授 became 准教授 on 1 April 2007; the same post, so in
-    // English (both "Associate Professor") the CV page shows the two as one row.
-    from: "2007-04",
+    // The faculty's five departments became four on 1 April 2009, and
+    // 情報理学部門 became 情報学部門; in English it was the Department of
+    // Informatics throughout, so there the CV page shows one place.
+    from: "2009-04",
     to: "2020-03",
     position: { en: "Associate Professor", ja: "准教授" },
     organization: {
@@ -52,12 +53,23 @@ export const CAREER: {
     },
   },
   {
+    // The title 助教授 became 准教授 on 1 April 2007; the same post, so in
+    // English (both "Associate Professor") the CV page shows the two as one row.
+    from: "2007-04",
+    to: "2009-03",
+    position: { en: "Associate Professor", ja: "准教授" },
+    organization: {
+      en: "Department of Informatics, Faculty of Information Science and Electrical Engineering, Kyushu University",
+      ja: "九州大学 大学院システム情報科学研究院 情報理学部門",
+    },
+  },
+  {
     from: "2006-12",
     to: "2007-03",
     position: { en: "Associate Professor", ja: "助教授" },
     organization: {
       en: "Department of Informatics, Faculty of Information Science and Electrical Engineering, Kyushu University",
-      ja: "九州大学 大学院システム情報科学研究院 情報学部門",
+      ja: "九州大学 大学院システム情報科学研究院 情報理学部門",
     },
   },
   {
@@ -66,7 +78,7 @@ export const CAREER: {
     position: { en: "Lecturer", ja: "講師" },
     organization: {
       en: "Department of Informatics, Faculty of Information Science and Electrical Engineering, Kyushu University",
-      ja: "九州大学 大学院システム情報科学研究院 情報学部門",
+      ja: "九州大学 大学院システム情報科学研究院 情報理学部門",
     },
   },
   {
@@ -80,34 +92,49 @@ export const CAREER: {
   },
 ];
 
-/** Degrees, newest first; shown under Education on the CV page. */
-export const DEGREES: {
-  /** "YYYY-MM", or just "YYYY" where the month is not known. */
+/**
+ * Education, newest first, as the old CV on the lab's server gives it; shown
+ * under Education on the CV page. `date` is when it ended ("YYYY-MM"), and
+ * `from`, if given, when it began. The doctorate is a thesis-only one
+ * (論文博士), conferred after he had left the doctoral course to take up the
+ * post at the Institute of Medical Science.
+ */
+export const EDUCATION: {
+  from?: string;
   date: string;
-  degree: Record<Locale, string>;
-  university: Record<Locale, string>;
+  title: Record<Locale, string>;
+  place: Record<Locale, string>;
 }[] = [
   {
     date: "2005-03",
-    degree: {
-      en: "Ph.D. in Information Science and Technology",
-      ja: "博士(情報理工学)",
+    title: {
+      en: "Ph.D. in Information Science and Technology, by dissertation",
+      ja: "博士(情報理工学)(論文博士)",
     },
-    university: { en: "The University of Tokyo", ja: "東京大学" },
+    place: { en: "The University of Tokyo", ja: "東京大学" },
   },
   {
-    date: "2000-03",
-    degree: { en: "M.Sc. in Information Science", ja: "修士(理学)" },
-    university: {
-      en: "Graduate School of Science, The University of Tokyo",
+    from: "2000-04",
+    date: "2000-07",
+    title: { en: "Doctoral program (withdrew)", ja: "博士課程 中途退学" },
+    place: {
+      en: "Department of Information Science, Graduate School of Science, The University of Tokyo",
       ja: "東京大学 大学院理学系研究科 情報科学専攻",
     },
   },
   {
+    date: "2000-03",
+    title: { en: "M.Sc. in Information Science", ja: "修士(理学)" },
+    place: {
+      en: "Department of Information Science, Graduate School of Science, The University of Tokyo",
+      ja: "東京大学 大学院理学系研究科 情報科学専攻 修士課程",
+    },
+  },
+  {
     date: "1998-03",
-    degree: { en: "B.Sc. in Information Science", ja: "学士(理学)" },
-    university: {
-      en: "Faculty of Science, The University of Tokyo",
+    title: { en: "B.Sc. in Information Science", ja: "学士(理学)" },
+    place: {
+      en: "Department of Information Science, Faculty of Science, The University of Tokyo",
       ja: "東京大学 理学部 情報科学科",
     },
   },
