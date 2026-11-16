@@ -73,10 +73,16 @@ export const PROFILE_LINKS: {
     icon: "academicons:google-scholar",
   },
   {
+    label: { en: "DBLP", ja: "DBLP" },
+    href: {
+      en: "https://dblp.org/pid/44/2355.html",
+      ja: "https://dblp.org/pid/44/2355.html",
+    },
+    icon: "academicons:dblp",
+  },
+  {
     label: { en: "GitHub", ja: "GitHub" },
     href: { en: "https://github.com/hdbn", ja: "https://github.com/hdbn" },
     icon: "lucide:github",
   },
-  // With its address filled in:
-  // { label: { en: 'DBLP', ja: 'DBLP' }, href: { en: 'https://dblp.org/pid/…', ja: '…' }, icon: 'academicons:dblp' },
 ];
