@@ -57,12 +57,26 @@ export const PROFILE_LINKS: {
     icon: "lucide:book-open",
   },
   {
+    label: { en: "ORCID", ja: "ORCID" },
+    href: {
+      en: "https://orcid.org/0000-0002-6856-5185",
+      ja: "https://orcid.org/0000-0002-6856-5185",
+    },
+    icon: "academicons:orcid",
+  },
+  {
+    label: { en: "Google Scholar", ja: "Google Scholar" },
+    href: {
+      en: "https://scholar.google.com/citations?user=RSzIRC4AAAAJ&hl=en",
+      ja: "https://scholar.google.com/citations?user=RSzIRC4AAAAJ&hl=ja",
+    },
+    icon: "academicons:google-scholar",
+  },
+  {
     label: { en: "GitHub", ja: "GitHub" },
     href: { en: "https://github.com/hdbn", ja: "https://github.com/hdbn" },
     icon: "lucide:github",
   },
-  // With their addresses filled in:
+  // With its address filled in:
   // { label: { en: 'DBLP', ja: 'DBLP' }, href: { en: 'https://dblp.org/pid/…', ja: '…' }, icon: 'academicons:dblp' },
-  // { label: { en: 'Google Scholar', ja: 'Google Scholar' }, href: { en: '…', ja: '…' }, icon: 'academicons:google-scholar' },
-  // { label: { en: 'ORCID', ja: 'ORCID' }, href: { en: 'https://orcid.org/…', ja: '…' }, icon: 'academicons:orcid' },
 ];
