@@ -3,6 +3,7 @@ import { Icon } from 'astro-icon/components';
 import Base from '../../layouts/Base.astro';
 import PublicationCard from '../../components/PublicationCard.astro';
 import { PUBLICATIONS, groupByYear, type Publication } from '../../lib/bibtex';
+import { TAGS, type Tag } from '../../data/tags';
 import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
 
 export const getStaticPaths = localeStaticPaths;
@@ -12,16 +13,49 @@ const t = useTranslations(locale);
 
 const grouped = groupByYear(PUBLICATIONS);
 
+// The list is long, so it is cut into five-year periods, one shown at a time
+// behind tabs, as on the DSCalgo lab site: 2025–2026, 2020–2024, …
+const periods: { start: number; end: number; years: typeof grouped; count: number }[] = [];
+for (const group of grouped) {
+  const start = Math.floor(group.year / 5) * 5;
+  let period = periods.at(-1);
+  if (period?.start !== start) {
+    period = { start, end: Math.min(start + 4, grouped[0].year), years: [], count: 0 };
+    periods.push(period);
+  }
+  period.years.push(group);
+  period.count += group.items.length;
+}
+// The axis starts at the first paper, not at a round year: a first period
+// with less than its five years (1999 alone) joins the one after it, as
+// 1999–2004.
+const first = periods.at(-1);
+const next = periods.at(-2);
+if (first && next && first.years.at(-1)!.year > first.start) {
+  next.start = first.years.at(-1)!.year;
+  next.years.push(...first.years);
+  next.count += first.count;
+  periods.pop();
+}
+// Each period's years, newest first as the list runs, gaps included, each
+// with its count, drawn as a bar over the period on the timeline.
+const yearCounts = new Map(grouped.map(({ year, items }) => [year, items.length]));
+const barYears = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, i) => end - i);
+const barHeight = (n: number, max: number) => (n === 0 ? 0 : Math.max(8, (100 * n) / max));
+const maxYearCount = Math.max(...yearCounts.values());
+
 // Peer-reviewed first, then the rest.
 const typeOrder: Publication['type'][] = ['journal', 'proceedings', 'book', 'preprint', 'report', 'thesis'];
 const types = typeOrder.filter((type) => PUBLICATIONS.some((p) => p.type === type));
+// Topics in the order data/tags.ts gives them, those that some paper has.
+const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) => p.tags.includes(tag)));
 ---
 
 <Base locale={locale} title={t.publications.heading} description={t.publications.description}>
   <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.publications.heading}</h1>
 
   <div class="publication-list mt-6">
-    <div class="mb-4 flex flex-wrap items-center gap-3 text-sm">
+    <div class="mb-4 flex flex-wrap items-center gap-3 text-sm print:hidden">
       <label class="relative flex-1 basis-64">
         <span class="sr-only">{t.publications.searchLabel}</span>
         <input
@@ -32,10 +66,22 @@ const types = typeOrder.filter((type) => PUBLICATIONS.some((p) => p.type === typ
         />
         <Icon name="lucide:search" class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
       </label>
-      <span class="pub-count text-ink-muted tabular-nums">{PUBLICATIONS.length}</span>
+      <span class="text-ink-muted">
+        <span class="pub-count tabular-nums">{PUBLICATIONS.length}</span>
+        {locale === 'en' && ' '}<span class="pub-count-unit" data-one={t.publications.countOne} data-many={t.publications.countMany}>{t.publications.countMany}</span>
+      </span>
     </div>
 
-    <div class="mb-8 flex flex-wrap items-center gap-2 text-sm">
+    <div class="mb-8 flex flex-wrap items-center gap-2 text-sm print:hidden">
+      <button
+        type="button"
+        class="pub-award-chip inline-flex cursor-pointer items-center gap-1 rounded-full border border-line bg-card px-2.5 py-1 text-xs font-medium text-ink-muted aria-pressed:border-accent aria-pressed:bg-accent-surface aria-pressed:text-accent"
+        aria-pressed="false"
+      >
+        <Icon name="lucide:award" class="h-3.5 w-3.5 text-accent" />
+        {t.publications.awards}
+      </button>
+      <span class="mx-1 h-4 w-px bg-line" aria-hidden="true"></span>
       {types.map((type) => (
         <button
           type="button"
@@ -48,61 +94,265 @@ const types = typeOrder.filter((type) => PUBLICATIONS.some((p) => p.type === typ
       ))}
     </div>
 
+    {tags.length > 0 && (
+      <div class="-mt-5 mb-8 flex flex-wrap items-center gap-2 text-sm print:hidden">
+        {tags.map((tag) => (
+          <button
+            type="button"
+            class="pub-tag-chip cursor-pointer rounded border border-line bg-card px-2 py-0.5 text-xs font-medium text-ink-muted hover:border-topic hover:text-topic aria-pressed:border-topic aria-pressed:bg-topic-surface aria-pressed:text-topic"
+            data-value={tag}
+            aria-pressed="false"
+          >
+            {TAGS[tag][locale]}
+          </button>
+        ))}
+      </div>
+    )}
+
     <p class="pub-no-matches hidden text-ink-muted">{t.publications.noMatches}</p>
 
-    <div class="space-y-8">
-      {grouped.map(({ year, items }) => (
-        <section class="pub-year">
-          <h2 class="section-heading">{year}</h2>
-          <ul class="mt-2">
-            {items.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
-          </ul>
-        </section>
-      ))}
+    {/* The newest period is open to begin with, in the HTML itself, so that
+        the page does not show every period until the script has run. */}
+    {/* A time axis, oldest on the left, to scale, a year to a bar, cut into
+        the five-year periods: a tick where each starts, and a bar for each
+        year's papers, its year under it. A period is picked as a span of the axis,
+        which it then marks; the list itself runs newest first. */}
+    <div class="pub-period-tabs mb-6 px-3 print:hidden" role="tablist" aria-label={t.publications.periods}>
+      <div class="flex">
+        {[...periods].reverse().map(({ start, end, count }) => {
+          const open = start === periods[0].start;
+          const range = start === end ? `${start}` : `${start}–${end}`;
+          return (
+            <button
+              id={`pub-tab-${start}`}
+              type="button"
+              role="tab"
+              aria-controls={`pub-period-${start}`}
+              aria-selected={open ? 'true' : 'false'}
+              tabindex={open ? 0 : -1}
+              data-period={start}
+              title={range}
+              style={`flex: ${end - start + 1} 1 0`}
+              class="pub-period-tab group relative flex min-w-0 cursor-pointer flex-col items-stretch rounded-t-lg pt-1 pb-1.5 tabular-nums hover:bg-brand-surface/40 disabled:cursor-default disabled:hover:bg-transparent aria-selected:bg-brand-surface/60"
+            >
+              <span class="sr-only">{range}</span>
+              <span class="pub-period-count text-center text-[0.7rem] text-ink-muted/80 group-disabled:opacity-40 group-aria-selected:font-semibold group-aria-selected:text-brand">{count}</span>
+              <span class="flex h-12 items-end gap-[2px] px-[3px] group-disabled:opacity-40 sm:gap-1 sm:px-1" aria-hidden="true">
+                {barYears(start, end).reverse().map((year) => (
+                  <span
+                    class="pub-year-bar flex-1 rounded-t-[3px] bg-ink-muted/25 transition-[height] group-hover:bg-brand-soft group-aria-selected:bg-brand"
+                    data-year={year}
+                    style={`height: ${barHeight(yearCounts.get(year) ?? 0, maxYearCount)}%`}
+                    title={`${year}: ${yearCounts.get(year) ?? 0}`}
+                  />
+                ))}
+              </span>
+              {/* The axis, thick and dark along the open period; a tick at
+                  the period's start, and at the very end of the axis. */}
+              <span class="relative mt-1 h-2" aria-hidden="true">
+                <span class="absolute inset-x-0 top-0 h-px bg-ink-muted/40 group-aria-selected:h-1 group-aria-selected:bg-brand" />
+                <span class="absolute top-0 left-0 h-2 w-px bg-ink-muted/50" />
+                {open && <span class="absolute top-0 right-0 h-2 w-px bg-ink-muted/50" />}
+              </span>
+              {/* Under each bar its year, turned to read upwards, the year a
+                  period starts darker than the rest. */}
+              <span class="mt-0.5 flex gap-[2px] px-[3px] sm:gap-1 sm:px-1" aria-hidden="true">
+                {barYears(start, end).reverse().map((year) => (
+                  <span class="flex flex-1 justify-center">
+                    <span
+                      class:list={[
+                        'rotate-180 text-[0.6rem] leading-none [writing-mode:vertical-rl] sm:text-[0.7rem]',
+                        year === start ? 'font-semibold text-ink' : 'text-ink-muted/80',
+                        'group-aria-selected:text-brand',
+                      ]}
+                    >
+                      {year}
+                    </span>
+                  </span>
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
+
+    {periods.map(({ start, years }, i) => (
+      <div
+        id={`pub-period-${start}`}
+        class="pub-period space-y-6"
+        data-period={start}
+        role="tabpanel"
+        aria-labelledby={`pub-tab-${start}`}
+        hidden={i > 0}
+      >
+        {years.map(({ year, items }) => (
+          <section class="pub-year card" data-year={year}>
+            {/* Stays at the top while its year scrolls by. */}
+            <h2 class="sticky top-0 z-10 flex items-center gap-4 bg-card pt-1 pb-2 text-2xl font-bold tracking-tight text-brand tabular-nums after:h-px after:flex-1 after:bg-line print:static">{year}</h2>
+            <ul>
+              {items.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
+            </ul>
+          </section>
+        ))}
+      </div>
+    ))}
   </div>
 </Base>
 
 <script>
-  const list = document.querySelector<HTMLElement>('.publication-list')!;
-  const items = [...list.querySelectorAll<HTMLElement>('.pub-item')];
-  const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-  // The visible title, authors and venue already hold the searchable words.
-  const searchable = new Map(
-    items.map((item) => [
-      item,
-      fold([item.querySelector('h3')?.textContent, ...[...item.querySelectorAll(':scope > p')].map((p) => p.textContent), item.closest('.pub-year')?.querySelector('h2')?.textContent].join(' ')),
-    ]),
-  );
-  const search = list.querySelector<HTMLInputElement>('.pub-search')!;
-  const count = list.querySelector<HTMLElement>('.pub-count')!;
-  const noMatches = list.querySelector<HTMLElement>('.pub-no-matches')!;
-  const chips = [...list.querySelectorAll<HTMLButtonElement>('.pub-filter-chip')];
+  // Each time a page comes in (the site swaps pages in place, see Base.astro);
+  // only the publication list has anything to set up. What it listens for on
+  // the window is dropped when the next page comes in.
+  let listeners: AbortController | null = null;
+  document.addEventListener('astro:page-load', () => {
+    listeners?.abort();
+    const list = document.querySelector<HTMLElement>('.publication-list');
+    if (!list) return;
+    listeners = new AbortController();
+    const items = [...list.querySelectorAll<HTMLElement>('.pub-item')];
+    const years = [...list.querySelectorAll<HTMLElement>('.pub-year')];
+    const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    // The searchable words: the title, authors, venue and line on the paper,
+    // its year, and its abstract, folded up but there in the page. Set by
+    // KaTeX, a formula reads as its letters run together ("O(nlogn)").
+    const searchable = new Map(
+      items.map((item) => [
+        item,
+        fold(
+          [
+            item.querySelector('h3')?.textContent,
+            ...[...item.querySelectorAll(':scope > p')].map((p) => p.textContent),
+            item.closest('.pub-year')?.querySelector('h2')?.textContent,
+            item.querySelector('.pub-abstract')?.textContent,
+          ].join(' '),
+        ),
+      ]),
+    );
+    const search = list.querySelector<HTMLInputElement>('.pub-search')!;
+    const count = list.querySelector<HTMLElement>('.pub-count')!;
+    const noMatches = list.querySelector<HTMLElement>('.pub-no-matches')!;
+    const chips = [...list.querySelectorAll<HTMLButtonElement>('.pub-filter-chip')];
+    const awardChip = list.querySelector<HTMLButtonElement>('.pub-award-chip')!;
+    const tagChips = [...list.querySelectorAll<HTMLButtonElement>('.pub-tag-chip')];
+    const unit = list.querySelector<HTMLElement>('.pub-count-unit')!;
+    const periods = [...list.querySelectorAll<HTMLElement>('.pub-period')];
+    const tabs = [...list.querySelectorAll<HTMLButtonElement>('.pub-period-tab')];
+    const bars = [...list.querySelectorAll<HTMLElement>('.pub-year-bar')];
+    let selected = periods[0]?.dataset.period;
 
-  function apply() {
-    // No chip pressed means every type, not none.
-    const pressed = new Set(chips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value));
-    // Every word has to appear somewhere, so typing more narrows the list.
-    const words = fold(search.value).split(/\s+/).filter(Boolean);
-    let shown = 0;
-    for (const item of items) {
-      const text = searchable.get(item) ?? '';
-      const visible = (pressed.size === 0 || pressed.has(item.dataset.pubType)) && words.every((word) => text.includes(word));
-      item.hidden = !visible;
-      if (visible) shown++;
+    function selectPeriod(period: string, focus = false) {
+      selected = period;
+      for (const panel of periods) panel.hidden = panel.dataset.period !== period;
+      for (const tab of tabs) {
+        const on = tab.dataset.period === period;
+        tab.ariaSelected = String(on);
+        tab.tabIndex = on ? 0 : -1;
+        if (on && focus) tab.focus();
+      }
     }
-    for (const year of list.querySelectorAll<HTMLElement>('.pub-year')) {
-      year.hidden = !year.querySelector('.pub-item:not([hidden])');
-    }
-    count.textContent = String(shown);
-    noMatches.classList.toggle('hidden', shown > 0);
-  }
 
-  for (const chip of chips) {
-    chip.addEventListener('click', () => {
-      chip.ariaPressed = chip.ariaPressed === 'true' ? 'false' : 'true';
-      apply();
+    // A link to one paper (from the home page, a talk) opens its period
+    // first, clearing any filter that hides it, then goes to it.
+    function showHashTarget() {
+      let id: string;
+      try {
+        id = decodeURIComponent(location.hash.slice(1));
+      } catch {
+        return;
+      }
+      const target = id ? document.getElementById(id) : null;
+      const panel = target?.closest<HTMLElement>('.pub-period');
+      if (!target || !panel) return;
+      if (target.hidden) {
+        search.value = '';
+        for (const chip of [awardChip, ...chips, ...tagChips]) chip.ariaPressed = 'false';
+        apply();
+      }
+      selectPeriod(panel.dataset.period!);
+      requestAnimationFrame(() => target.scrollIntoView());
+    }
+
+    function apply() {
+      // No chip pressed means every type, not none.
+      const onlyAwarded = awardChip.ariaPressed === 'true';
+      const pressed = new Set(chips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value));
+      // Topics as types: any of those pressed, and none pressed means all.
+      const pressedTags = tagChips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value!);
+      // Every word has to appear somewhere, so typing more narrows the list.
+      const words = fold(search.value).split(/\s+/).filter(Boolean);
+      let shown = 0;
+      for (const item of items) {
+        const text = searchable.get(item) ?? '';
+        const visible =
+          (!onlyAwarded || item.dataset.award !== undefined) &&
+          (pressed.size === 0 || pressed.has(item.dataset.pubType)) &&
+          (pressedTags.length === 0 || pressedTags.some((tag) => (item.dataset.tags ?? '').split(' ').includes(tag))) &&
+          words.every((word) => text.includes(word));
+        item.hidden = !visible;
+        if (visible) shown++;
+      }
+      for (const year of years) {
+        year.hidden = !year.querySelector('.pub-item:not([hidden])');
+      }
+      // Each period on the timeline counts what the filters leave in it, and
+      // its bars what they leave in each year, against the fullest year left;
+      // a period left empty cannot be opened, and the open one moves to the
+      // newest left.
+      for (const period of periods) {
+        const left = period.querySelectorAll('.pub-item:not([hidden])').length;
+        const tab = tabs.find((t) => t.dataset.period === period.dataset.period)!;
+        tab.disabled = left === 0;
+        tab.querySelector('.pub-period-count')!.textContent = String(left);
+      }
+      const perYear = new Map(years.map((year) => [year.dataset.year, year.querySelectorAll('.pub-item:not([hidden])').length]));
+      const fullest = Math.max(1, ...perYear.values());
+      for (const bar of bars) {
+        const n = perYear.get(bar.dataset.year) ?? 0;
+        bar.style.height = n === 0 ? '0' : `${Math.max(8, (100 * n) / fullest)}%`;
+        bar.title = `${bar.dataset.year}: ${n}`;
+      }
+      const open = tabs.find((tab) => !tab.disabled && tab.dataset.period === selected) ?? tabs.findLast((tab) => !tab.disabled);
+      if (open) selectPeriod(open.dataset.period!);
+      else for (const period of periods) period.hidden = true;
+      count.textContent = String(shown);
+      unit.textContent = (shown === 1 ? unit.dataset.one : unit.dataset.many) ?? '';
+      noMatches.classList.toggle('hidden', shown > 0);
+    }
+
+    for (const chip of [awardChip, ...chips, ...tagChips]) {
+      chip.addEventListener('click', () => {
+        chip.ariaPressed = chip.ariaPressed === 'true' ? 'false' : 'true';
+        apply();
+      });
+    }
+    search.addEventListener('input', apply);
+
+    list.querySelector('.pub-period-tabs')!.addEventListener('click', (event) => {
+      const tab = (event.target as Element).closest<HTMLButtonElement>('.pub-period-tab');
+      if (tab) selectPeriod(tab.dataset.period!);
     });
-  }
-  search.addEventListener('input', apply);
+    // Arrow keys, Home and End move between the tabs, as tabs do.
+    list.querySelector('.pub-period-tabs')!.addEventListener('keydown', (event) => {
+      const key = (event as KeyboardEvent).key;
+      const tab = (event.target as Element).closest<HTMLButtonElement>('.pub-period-tab');
+      if (!tab) return;
+      const shown = tabs.filter((t) => !t.disabled);
+      const i = shown.indexOf(tab);
+      const next =
+        key === 'ArrowRight' ? shown[(i + 1) % shown.length]
+        : key === 'ArrowLeft' ? shown[(i - 1 + shown.length) % shown.length]
+        : key === 'Home' ? shown[0]
+        : key === 'End' ? shown.at(-1)
+        : undefined;
+      if (next) {
+        event.preventDefault();
+        selectPeriod(next.dataset.period!, true);
+      }
+    });
+
+    if (location.hash) showHashTarget();
+    // A link to a paper on this same page changes only the hash.
+    window.addEventListener('hashchange', showHashTarget, { signal: listeners.signal });
+  });
 </script>

@@ -1,0 +1,32 @@
+---
+// A publication in two lines, for the home page: the title, linking to its
+// entry in the full list, then the venue and the award or the line on why.
+import Star from './Star.astro';
+import { publicationAnchor, shortVenue, titleHtml, type Publication } from '../lib/bibtex';
+import { localizedPath, useTranslations, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+  publication: Publication;
+}
+
+const { locale, publication } = Astro.props;
+const t = useTranslations(locale);
+const href = `${localizedPath(locale, '/publications/')}#${publicationAnchor(publication.key)}`;
+const why = publication.selected?.why?.[locale];
+const venue = shortVenue(publication);
+// "ESA 2024 · Best Paper Award", not "ESA 2024 · ESA 2024 Best Paper Award".
+const award = venue && publication.note?.startsWith(`${venue} `) ? publication.note.slice(venue.length + 1) : publication.note;
+---
+
+<li class="border-b border-line py-3">
+  <p class="leading-snug font-semibold text-ink">
+    {publication.selected && <Star class="mr-1 inline-block h-4 w-4 align-[-0.15em] text-accent" title={t.publications.selected} />}
+    <a href={href} class="hover:text-brand hover:underline" set:html={titleHtml(publication.title)} />
+  </p>
+  <p class="mt-0.5 text-sm text-ink-muted">
+    <span class="italic">{venue}</span>
+    {award && <span class="font-semibold text-accent"> · {award}</span>}
+    {why && <span class="text-ink"> · {why}</span>}
+  </p>
+</li>

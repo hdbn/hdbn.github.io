@@ -7,17 +7,21 @@ import { formatMonth, localizedPath, useTranslations, type Locale } from '../lib
 interface Props {
   locale: Locale;
   talk: Talk;
+  /** The date in the event's line rather than a column of its own, as on the home page. */
+  inlineDate?: boolean;
 }
 
-const { locale, talk } = Astro.props;
+const { locale, talk, inlineDate = false } = Astro.props;
 const t = useTranslations(locale);
 const slides = talkSlides(talk);
 // A talk on a paper shows the paper's award, as the publication list does.
 const award = talk.bibKey && PUBLICATIONS.find((pub) => pub.key === talk.bibKey)?.note;
 ---
 
-<li class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
-  <time datetime={talk.date} class="w-20 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">{formatMonth(locale, talk.date)}</time>
+<li class:list={['border-b border-line py-3', !inlineDate && 'flex flex-col gap-1 sm:flex-row sm:gap-4']}>
+  {!inlineDate && (
+    <time datetime={talk.date} class="w-20 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">{formatMonth(locale, talk.date)}</time>
+  )}
   <div class="min-w-0">
     {/* Titles and events stay as given, in English, on both sides. */}
     <p class="leading-snug font-semibold text-ink" lang="en">
@@ -29,6 +33,12 @@ const award = talk.bibKey && PUBLICATIONS.find((pub) => pub.key === talk.bibKey)
       )}
     </p>
     <p class="mt-0.5 text-sm text-ink-muted" lang="en">
+      {inlineDate && (
+        <>
+          <time datetime={talk.date} class="tabular-nums" lang={locale}>{formatMonth(locale, talk.date)}</time>
+          {' · '}
+        </>
+      )}
       {talk.eventUrl ? <a href={talk.eventUrl} class="underline decoration-ink-muted/30 underline-offset-2 hover:text-brand hover:decoration-brand">{talk.event}</a> : talk.event}
     </p>
     {award && (
@@ -40,7 +50,7 @@ const award = talk.bibKey && PUBLICATIONS.find((pub) => pub.key === talk.bibKey)
     {(slides.length > 0 || talk.bibKey) && (
       <div class="mt-1 flex flex-wrap gap-3 text-xs font-medium">
         {slides.map(({ url, format }) => (
-          <a href={url} class="inline-flex items-center gap-1 text-brand hover:underline">
+          <a href={url} class="inline-flex items-center gap-1 text-brand hover:underline" data-astro-reload>
             <Icon name="lucide:presentation" class="h-3.5 w-3.5" />
             {t.links.slides} ({format})
           </a>

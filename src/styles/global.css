@@ -1,13 +1,23 @@
 @import 'tailwindcss';
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
+@import './fonts.css';
+
+/* Arial (or Liberation Sans, cut to Arial's measurements), stretched to
+   Inter's measurements, for a page shown before Inter has loaded (see
+   fonts.css), so that it looks as near as can be to the rest. Arial has no
+   Japanese, so Japanese still falls through. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans');
+  size-adjust: 107.12%;
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+}
 
 @theme {
   /* Inter has no Japanese, so Japanese falls through to the system's own
      face rather than a web font several megabytes large. */
-  --font-sans: 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', Meiryo, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Inter Fallback', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', Meiryo, system-ui, sans-serif;
 
   --color-paper: #f7f8fa;
   --color-card: #ffffff;
@@ -20,9 +30,22 @@
   /* Dark enough to carry small text on paper. */
   --color-accent: #a8470c;
   --color-accent-surface: #fbeadd;
+  /* Research topics: a third hue, so that they read as neither a kind of
+     publication (brand) nor a distinction (accent). */
+  --color-topic: #1d6656;
+  --color-topic-surface: #e2f2ec;
 }
 
 @layer base {
+  /* On paper, every period of the publication list, not just the open one.
+     In this layer, as an !important outside it would lose to Tailwind's own
+     [hidden] { display: none !important } here. */
+  @media print {
+    .pub-period[hidden] {
+      display: block !important;
+    }
+  }
+
   html {
     font-size: 17px;
     /* The publication list is far taller than the home page; laying out the
@@ -37,13 +60,60 @@
   }
 }
 
+/* On paper (the CV printed to a PDF, say): white, in the page's own colours,
+   with no entry split over two pages. What is only for the screen carries
+   Tailwind's print:hidden. */
+@media print {
+  @page {
+    margin: 16mm 15mm;
+  }
+  html {
+    font-size: 10.5pt;
+    overflow-y: visible;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body {
+    background-color: white;
+  }
+  li,
+  dl > div {
+    break-inside: avoid;
+  }
+  h1,
+  h2 {
+    break-after: avoid;
+  }
+}
+
 @layer components {
-  /* A section heading: small, spaced capitals over a rule. */
+  /* A section heading: the page's own headings, as large as the year
+     headings of the publication list, and followed by a rule. */
   .section-heading {
-    @apply flex items-center gap-3 text-xs font-semibold tracking-[0.14em] text-brand uppercase;
+    @apply flex items-center gap-4 text-xl font-semibold tracking-tight text-brand;
   }
   .section-heading::after {
     content: '';
     @apply h-px flex-1 bg-line;
   }
+
+  /* A section on a card of its own: the home page's sections, the CV's,
+     each year of the publication list, the list of talks. */
+  .card {
+    @apply rounded-2xl border border-line/70 bg-card px-4 py-5 shadow-[0_1px_2px_rgb(22_32_44/0.04),0_4px_16px_-4px_rgb(22_32_44/0.08)] sm:px-6 sm:py-6 print:border-0 print:p-0 print:shadow-none;
+  }
+
+  /* An icon-only link, with a touch target of its own. */
+  .tap-icon {
+    @apply grid h-9 w-9 cursor-pointer place-items-center rounded-full text-ink-muted hover:bg-brand-surface hover:text-brand;
+  }
+}
+
+/* A list on a card ends without a rule: the card's edge does that.
+   Outside the layers, to win over the items' own border utility. */
+.card > ul > li:last-child,
+.card > section > ul > li:last-child,
+.card > ol > li:last-child,
+.card > dl > div:last-child {
+  border-bottom-width: 0;
 }

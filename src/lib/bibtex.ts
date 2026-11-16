@@ -3,8 +3,13 @@
 import { parse, type Creator, type Entry } from '@retorquere/bibtex-parser';
 import bib from '../data/hideo-bannai.bib?raw';
 import { AWARDS } from '../data/awards';
+import { SELECTED } from '../data/selected';
+import { SUMMARIES } from '../data/summaries';
+import ABSTRACTS from '../data/abstracts.json';
+import { PAPER_TAGS, type Tag } from '../data/tags';
 import { TALKS, talkSlides } from '../data/talks';
 import { fileFormat, type SlideFile } from './files';
+import type { Locale } from './i18n';
 
 export type PublicationType = 'journal' | 'proceedings' | 'preprint' | 'report' | 'thesis' | 'book';
 
@@ -20,6 +25,13 @@ export interface Publication {
   year: number;
   venue?: string;
   note?: string;
+  /** Listed in data/selected.ts, with the line on why, if it has one. */
+  selected?: { why?: Record<Locale, string> };
+  /** One line on what the paper does, from data/summaries.ts; shared by every version of the paper. */
+  summary?: Record<Locale, string>;
+  /** Research topics, from data/tags.ts; shared like the summary. */
+  tags: Tag[];
+  /** From the entry's own `abstract` field, or data/abstracts.json; LaTeX mathematics in `$…$`. */
   abstract?: string;
   /** Set on a non-journal entry when a journal version of the same paper also exists. */
   journalVersion?: { venue?: string; year: number; url?: string };
@@ -98,7 +110,9 @@ function entryToPublication(entry: Entry): Publication {
     year: Number(fields.year ?? 0),
     venue: venueOf(entry),
     note: custom.note ?? AWARDS[entry.key],
+    selected: SELECTED.flatMap((theme) => theme.papers).find((s) => s.key === entry.key),
     abstract: custom.abstract,
+    tags: [],
     type: typeOf(entry),
     slides: custom.slides ? [{ url: custom.slides, format: fileFormat(custom.slides) }] : (SLIDES_BY_KEY.get(entry.key) ?? []),
     links: {
@@ -159,6 +173,26 @@ function loadPublications(source: string): Publication[] {
     }
   }
 
+  // A paper's line and abstract, each written once under any one of its
+  // versions' keys, go on all of them: the conference and journal versions,
+  // and the preprint.
+  const abstracts: Record<string, string> = ABSTRACTS;
+  for (const group of publishedByTitle.values()) {
+    const summary = group.map((p) => SUMMARIES[p.key]).find(Boolean);
+    const abstract = group.map((p) => p.abstract ?? abstracts[p.key]).find(Boolean);
+    const tags = group.map((p) => PAPER_TAGS[p.key]).find(Boolean) ?? [];
+    for (const pub of group) {
+      pub.summary = summary;
+      pub.abstract = abstract;
+      pub.tags = tags;
+    }
+  }
+  for (const pub of publications) {
+    pub.summary ??= SUMMARIES[pub.key];
+    pub.abstract ??= abstracts[pub.key];
+    if (pub.tags.length === 0) pub.tags = PAPER_TAGS[pub.key] ?? [];
+  }
+
   // When a proceedings/other version and a journal version of the same paper
   // both exist, point the non-journal entry at the journal one without
   // merging them, since they remain distinct, separately citable publications.
@@ -191,12 +225,45 @@ export function venueWithYear(venue: string | undefined, year: number): string |
 }
 
 /**
+ * A venue short enough for one line, with the year: a journal as DBLP
+ * abbreviates it ("SIAM J. Comput., 2017"), a conference by its acronym
+ * ("ESA 2024"), else the name up to its first comma.
+ */
+export function shortVenue(publication: Publication): string | undefined {
+  const { venue, year, type } = publication;
+  if (!venue) return undefined;
+  if (type === 'journal') return venueWithYear(venue, year);
+  const acronym = venue.match(/\b([A-Z][A-Za-z&-]*[A-Z][A-Za-z&-]*(?: Track [A-Z])?) ((?:19|20)\d\d)\b/);
+  if (acronym) return `${acronym[1]} ${acronym[2]}`;
+  return venueWithYear(venue.replace(/^Proceedings of (the )?/, '').split(',')[0], year);
+}
+
+/**
  * The id of a publication's entry in the list. BibTeX keys from DBLP look
  * like `DBLP:journals/mst/BannaiK24`: legal in an id, but not a valid CSS
  * selector.
  */
 export function publicationAnchor(key: string): string {
   return `pub-${key.replace(/[^A-Za-z0-9_-]/g, '-')}`;
+}
+
+/** The selected publications, by theme, in data/selected.ts's order. */
+export const SELECTED_PUBLICATIONS = SELECTED.map(({ theme, papers }) => ({
+  theme,
+  publications: papers.map(({ key }) => {
+    const publication = PUBLICATIONS.find((p) => p.key === key);
+    if (!publication) throw new Error(`data/selected.ts: no publication ${key} in hideo-bannai.bib`);
+    return publication;
+  }),
+}));
+
+/**
+ * A title as HTML. The parser turns LaTeX markup into tags (\emph{r} → <i>r</i>,
+ * ^{1.5} → <sup>); keep those few and escape everything else.
+ */
+export function titleHtml(title: string): string {
+  const escaped = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.replace(/&lt;(\/?)(i|b|sub|sup)&gt;/g, '<$1$2>');
 }
 
 export function groupByYear(publications: Publication[]): { year: number; items: Publication[] }[] {

@@ -11,6 +11,8 @@ interface Props {
 const { locale } = Astro.props;
 // The name in the page's language, with the other one under it.
 const other: Locale = locale === 'en' ? 'ja' : 'en';
+const homepage = new URL(localizedPath(locale, '/'), Astro.site).href;
+const emailLabel = locale === 'en' ? 'Write an email' : 'メールを書く';
 
 
 // src/assets/portrait.jpg, cut by scripts/portrait.mjs; the initials stand in
@@ -28,11 +30,11 @@ const portrait = Object.values(
       width={320}
       height={320}
       loading="eager"
-      class="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-card shadow-sm md:h-40 md:w-40"
+      class="h-20 w-20 shrink-0 rounded-full object-cover print:hidden ring-4 ring-card shadow-sm md:h-40 md:w-40"
     />
   ) : (
     <div
-      class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-2xl font-bold tracking-wide text-white md:h-40 md:w-40 md:text-5xl"
+      class="grid h-20 w-20 shrink-0 place-items-center print:hidden rounded-full bg-gradient-to-br from-brand to-brand-soft text-2xl font-bold tracking-wide text-white md:h-40 md:w-40 md:text-5xl"
       aria-hidden="true"
     >
       {PROFILE.initials}
@@ -41,6 +43,27 @@ const portrait = Object.values(
   <div class="md:mt-6">
     <a href={localizedPath(locale, '/')} class="block text-xl font-bold tracking-tight text-ink md:text-2xl">{PROFILE.name[locale]}</a>
     <p class="text-sm text-ink-muted" lang={other}>{PROFILE.name[other]}</p>
+    {/* On a phone, the links as a row of icons under the name; the labels come back on a wide screen. */}
+    <ul class="mt-1 -ml-2 flex items-center md:hidden print:hidden">
+      <li>
+        <button
+          type="button"
+          class="email-reveal tap-icon"
+          data-bbwt={PROFILE.emailBbwt}
+          title={emailLabel}
+          aria-label={emailLabel}
+        >
+          <Icon name="lucide:mail" class="h-5 w-5" />
+        </button>
+      </li>
+      {PROFILE_LINKS.map(({ label, href, icon }) => (
+        <li>
+          <a href={href[locale]} class="tap-icon" title={label[locale]} aria-label={label[locale]}>
+            <Icon name={icon} class="h-5 w-5" />
+          </a>
+        </li>
+      ))}
+    </ul>
   </div>
 </div>
 
@@ -54,14 +77,17 @@ const portrait = Object.values(
   ))}
 </p>
 
-<ul class="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm md:block md:space-y-2">
+{/* On paper, the address of the site in place of the links. */}
+<p class="mt-2 hidden text-sm text-ink-muted print:block">{homepage.replace(/^https:\/\//, '').replace(/\/$/, '')}</p>
+
+<ul class="mt-5 hidden space-y-2 text-sm md:block print:hidden">
   <li>
     {/* Opens a new mail; the address is put together only then, by the script below. */}
     <button
       type="button"
       class="email-reveal inline-flex cursor-pointer items-center gap-2 text-ink-muted hover:text-brand"
       data-bbwt={PROFILE.emailBbwt}
-      title={locale === 'en' ? 'Write an email' : 'メールを書く'}
+      title={emailLabel}
     >
       <Icon name="lucide:mail" class="h-4 w-4 shrink-0" />
       <span>{locale === 'en' ? 'Email' : 'メール'}</span>
@@ -83,10 +109,10 @@ const portrait = Object.values(
   // Until it is clicked, the address is nowhere: not in the HTML and not in
   // the page a crawler renders, since crawlers that run scripts do not go
   // round clicking things. A click opens a new mail to it and leaves the
-  // page as it was.
-  for (const button of document.querySelectorAll<HTMLButtonElement>('.email-reveal')) {
-    button.addEventListener('click', () => {
-      location.href = `mailto:${inverseBbwt(button.dataset.bbwt ?? '')}`;
-    });
-  }
+  // page as it was. Listened for on the document, which stays as pages are
+  // swapped in.
+  document.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('.email-reveal');
+    if (button) location.href = `mailto:${inverseBbwt(button.dataset.bbwt ?? '')}`;
+  });
 </script>

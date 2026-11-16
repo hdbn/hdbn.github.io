@@ -1,5 +1,15 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
+// The Latin Inter of each weight the site uses, fetched with the page rather
+// than once the stylesheet asks for them: otherwise each page shows first in
+// the fallback face, then jumps as Inter arrives. The same files global.css
+// names, so the URLs match.
+import inter400 from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
+import inter500 from '@fontsource/inter/files/inter-latin-500-normal.woff2?url';
+import inter600 from '@fontsource/inter/files/inter-latin-600-normal.woff2?url';
+import inter700 from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
+import LangSwitch from '../components/LangSwitch.astro';
 import Profile from '../components/Profile.astro';
 import { PROFILE } from '../data/profile';
 import { locales, localizedPath, logicalPath, ogLocale, useTranslations, type Locale } from '../lib/i18n';
@@ -32,11 +42,15 @@ const nav = [
 ];
 ---
 
-<html lang={locale}>
+{/* No animation: the new page simply takes the old one's place. */}
+<html lang={locale} transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
+    {[inter400, inter500, inter600, inter700].map((href) => (
+      <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
+    ))}
     <meta name="description" content={description} />
     {noindex ? (
       <meta name="robots" content="noindex" />
@@ -55,17 +69,28 @@ const nav = [
     <meta property="og:description" content={description} />
     <meta property="og:url" content={absolute(locale)} />
     <meta property="og:locale" content={ogLocale[locale]} />
+    {/* Links within the site swap the page's content in place of loading a
+        new page: Safari draws a new page before its fonts are ready, so on
+        every page change the text vanished for a moment. Scripts that set up
+        a page run again on astro:page-load. */}
+    <ClientRouter />
   </head>
   <body class="min-h-screen">
-    <div class="h-1 bg-gradient-to-r from-brand via-brand-soft to-accent"></div>
-    <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:grid md:grid-cols-[15rem_1fr] md:gap-12 md:py-14 lg:gap-16">
-      <aside class="md:sticky md:top-14 md:self-start">
+    <div class="h-1 bg-gradient-to-r print:hidden from-brand via-brand-soft to-accent"></div>
+    <div class="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 print:block print:max-w-none print:p-0 md:grid md:grid-cols-[15rem_1fr] md:gap-12 md:py-14 lg:gap-16">
+      {/* On a phone the tabs fill the row, so the switch sits up here beside the name. */}
+      <div class="absolute top-8 right-4 sm:right-6 md:hidden print:hidden">
+        <LangSwitch locale={locale} path={switchPath} compact />
+      </div>
+      {/* Kept as it is from page to page, so it is not drawn again; a new one
+          comes with the other language. */}
+      <aside class="md:sticky md:top-14 md:self-start print:static" transition:persist={`profile-${locale}`}>
         <Profile locale={locale} />
       </aside>
 
-      <div class="mt-8 min-w-0 md:mt-0">
-        <nav class="flex items-end justify-between gap-4 border-b border-line">
-          <ul class="-mb-px flex gap-6 text-sm font-medium">
+      <div class="mt-8 min-w-0 md:mt-0 print:mt-6">
+        <nav class="flex items-end print:hidden justify-between gap-4 border-b border-line">
+          <ul class="-mb-px flex gap-5 text-sm font-medium sm:gap-6">
             {nav.map((item) => (
               <li>
                 <a
@@ -81,26 +106,14 @@ const nav = [
               </li>
             ))}
           </ul>
-          <ul class="mb-2 flex shrink-0 items-center gap-1 rounded-full bg-brand-surface p-1 text-xs font-semibold">
-            {locales.map((other) => (
-              <li>
-                <a
-                  href={localizedPath(other, switchPath)}
-                  hreflang={other}
-                  lang={other}
-                  aria-current={other === locale ? 'page' : undefined}
-                  class:list={['block rounded-full px-2.5 py-1', other === locale ? 'bg-brand text-white' : 'text-brand']}
-                >
-                  {other === 'en' ? 'EN' : '日本語'}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div class="mb-2 hidden shrink-0 md:block">
+            <LangSwitch locale={locale} path={switchPath} />
+          </div>
         </nav>
-        <main class="pt-8">
+        <main class="pt-8 print:pt-0">
           <slot />
         </main>
-        <footer class="mt-16 border-t border-line pt-6 text-xs text-ink-muted">
+        <footer class="mt-16 print:hidden border-t border-line pt-6 text-xs text-ink-muted">
           © {new Date().getFullYear()} {PROFILE.name.en}
         </footer>
       </div>

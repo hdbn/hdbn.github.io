@@ -9,19 +9,55 @@ export const getStaticPaths = localeStaticPaths;
 const { locale } = Astro.props as { locale: Locale };
 const t = useTranslations(locale);
 
+// "2024-10" → "Oct 2024" / "2024年10月"; a bare "2024" → "2024" / "2024年".
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const when = (date: string) => {
+  const [year, month] = date.split('-').map(Number);
+  if (locale === 'ja') return month ? `${year}年${month}月` : `${year}年`;
+  return month ? `${MONTHS[month - 1]} ${year}` : `${year}`;
+};
+const span = (from: string, to?: string) =>
+  `${when(from)}${locale === 'ja' ? '–' : ' – '}${to ? when(to) : t.cv.present}`;
+
+// Adjacent posts that read the same in this language become one post, with
+// each place it was held in under it: the M&D Data Science Center's
+// professorship through the university's merger and the centre's moves, and,
+// in English, 助教授 and 准教授, both "Associate Professor", as one.
+type Step = { from: string; to?: string; organization: string };
+const posts: { position: string; from: string; to?: string; steps: Step[] }[] = [];
+for (const entry of CAREER) {
+  const step = { from: entry.from, to: entry.to, organization: entry.organization[locale] };
+  const newer = posts.at(-1);
+  if (newer?.position === entry.position[locale]) {
+    newer.from = entry.from;
+    const last = newer.steps.at(-1)!;
+    if (last.organization === step.organization) last.from = step.from;
+    else newer.steps.push(step);
+  } else {
+    posts.push({ position: entry.position[locale], from: entry.from, to: entry.to, steps: [step] });
+  }
+}
+
 // Committees by role, each event once with its years, newest first:
 // "CPM 2025, 2022 (co-chair), 2020"; a standing committee as "CPM 2024–present".
+// An event's tracks go under the event: "ESA 2026 (Track S), 2025 (Track A)".
+const splitTrack = (event: string) => {
+  const [, name, track] = event.match(/^(.*?)(?: (Track \S+))?$/)!;
+  return { name, track };
+}
 const roles: Service['role'][] = ['steering', 'organizing', 'pc'];
 const service = roles
   .map((role) => {
     const byEvent = new Map<string, Service[]>();
     for (const entry of SERVICE.filter((s) => s.role === role)) {
-      byEvent.set(entry.event, [...(byEvent.get(entry.event) ?? []), entry]);
+      const { name } = splitTrack(entry.event);
+      byEvent.set(name, [...(byEvent.get(name) ?? []), entry]);
     }
     const events = [...byEvent].map(([event, entries]) => {
       const sorted = entries.sort((a, b) => b.year - a.year);
       const years = sorted.map((e) => ({
         year: role === 'steering' ? `${e.year}–${e.to ?? t.cv.present}` : `${e.year}`,
+        track: splitTrack(e.event).track,
         chair: e.chair && t.serviceChair[e.chair],
         url: e.url,
       }));
@@ -35,63 +71,83 @@ const service = roles
 <Base locale={locale} title={t.cv.heading} description={t.cv.description}>
   <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.cv.heading}</h1>
 
-  <section class="mt-10">
+  <section class="card mt-10">
     <h2 class="section-heading">{t.cv.career}</h2>
-    <ul class="mt-3">
-      {CAREER.map(({ from, to, position, organization }) => (
-        <li class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
-          <span class="w-28 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">
-            {from}–{to ?? t.cv.present}{locale === 'ja' && to ? '年' : ''}
-          </span>
-          <p class="leading-snug text-ink">
-            <span class="font-semibold">{position[locale]}</span>
-            <span class="text-ink-muted">{locale === 'en' ? ', ' : '　'}{organization[locale]}</span>
-          </p>
+    <ol class="mt-5">
+      {posts.map(({ position, from, to, steps }, i) => (
+        <li class="relative pb-7 pl-7 last:pb-0">
+          {i < posts.length - 1 && <span class="absolute top-4 bottom-0 left-[5px] w-0.5 bg-line" aria-hidden="true" />}
+          <span
+            class:list={['absolute top-1.5 left-0 h-3 w-3 rounded-full', to ? 'border-2 border-brand-soft bg-card' : 'bg-brand ring-4 ring-brand-surface']}
+            aria-hidden="true"
+          />
+          <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <p class="leading-snug font-semibold text-ink">{position}</p>
+            <span class="text-sm whitespace-nowrap text-ink-muted tabular-nums">{span(from, to)}</span>
+          </div>
+          {steps.length === 1 ? (
+            <p class="mt-0.5 text-sm text-ink-muted">{steps[0].organization}</p>
+          ) : (
+            <ul class="mt-2 space-y-2 border-l-2 border-brand-surface pl-3">
+              {steps.map((step) => (
+                <li class="text-sm leading-snug">
+                  <span class="block text-xs text-ink-muted tabular-nums">{span(step.from, step.to)}</span>
+                  <span class="text-ink-muted">{step.organization}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </li>
       ))}
-    </ul>
+    </ol>
   </section>
 
-  <section class="mt-14">
+  <section class="card mt-10">
     <h2 class="section-heading">{t.cv.education}</h2>
-    <ul class="mt-3">
-      {DEGREES.map(({ year, degree, university }) => (
-        <li class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
-          <span class="w-28 shrink-0 pt-0.5 text-sm text-ink-muted tabular-nums">{year}{locale === 'ja' ? '年' : ''}</span>
-          <p class="leading-snug text-ink">
-            <span class="font-semibold">{degree[locale]}</span>
-            <span class="text-ink-muted">{locale === 'en' ? ', ' : '　'}{university[locale]}</span>
-          </p>
+    <ol class="mt-5">
+      {DEGREES.map(({ date, degree, university }, i) => (
+        <li class="relative pb-7 pl-7 last:pb-0">
+          {i < DEGREES.length - 1 && <span class="absolute top-4 bottom-0 left-[5px] w-0.5 bg-line" aria-hidden="true" />}
+          <span class="absolute top-1.5 left-0 h-3 w-3 rounded-full border-2 border-brand-soft bg-card" aria-hidden="true" />
+          <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <p class="leading-snug font-semibold text-ink">{degree[locale]}</p>
+            <span class="text-sm whitespace-nowrap text-ink-muted tabular-nums">{when(date)}</span>
+          </div>
+          <p class="mt-0.5 text-sm text-ink-muted">{university[locale]}</p>
         </li>
       ))}
-    </ul>
+    </ol>
   </section>
 
   {service.length > 0 && (
-    <section class="mt-14">
+    <section class="card mt-10">
       <h2 class="section-heading">{t.cv.service}</h2>
       <dl class="mt-3">
         {service.map(({ role, events }) => (
           <div class="flex flex-col gap-1 border-b border-line py-3 sm:flex-row sm:gap-4">
             <dt class="w-44 shrink-0 pt-0.5 text-sm text-ink-muted">{t.serviceRole[role]}</dt>
-            <dd class="leading-relaxed text-ink" lang="en">
-              {events.map(({ event, years }, i) => (
-                <>
-                  {i > 0 && <span class="text-ink-muted">; </span>}
-                  <span class="font-semibold">{event}</span>{' '}
-                  {years.map(({ year, chair, url }, j) => (
-                    <>
-                      {j > 0 && <span class="text-ink-muted">, </span>}
-                      {url ? (
-                        <a href={url} class="tabular-nums text-ink-muted underline decoration-ink-muted/30 underline-offset-2 hover:text-brand hover:decoration-brand">{year}</a>
-                      ) : (
-                        <span class="tabular-nums text-ink-muted">{year}</span>
-                      )}
-                      {chair && <span class="text-ink-muted" lang={locale}> ({chair})</span>}
-                    </>
-                  ))}
-                </>
-              ))}
+            <dd class="min-w-0 flex-1" lang="en">
+              <ul>
+                {events.map(({ event, years }) => (
+                  <li class="flex gap-3 py-0.5 leading-snug">
+                    <span class="w-28 shrink-0 font-semibold text-ink">{event}</span>
+                    <span class="text-sm leading-6 text-ink-muted">
+                      {years.map(({ year, track, chair, url }, j) => (
+                        <>
+                          {j > 0 && ', '}
+                          {url ? (
+                            <a href={url} class="tabular-nums underline decoration-ink-muted/30 underline-offset-2 hover:text-brand hover:decoration-brand">{year}</a>
+                          ) : (
+                            <span class="tabular-nums">{year}</span>
+                          )}
+                          {track && <span> ({track})</span>}
+                          {chair && <span lang={locale}> ({chair})</span>}
+                        </>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </dd>
           </div>
         ))}
