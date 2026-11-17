@@ -26,17 +26,10 @@ for (const group of grouped) {
   period.years.push(group);
   period.count += group.items.length;
 }
-// The axis starts at the first paper, not at a round year: a first period
-// with less than its five years (1999 alone) joins the one after it, as
-// 1999–2004.
+// The axis starts at the first paper, not at a round year: the first period
+// runs from it, so 1999 is a period of one year.
 const first = periods.at(-1);
-const next = periods.at(-2);
-if (first && next && first.years.at(-1)!.year > first.start) {
-  next.start = first.years.at(-1)!.year;
-  next.years.push(...first.years);
-  next.count += first.count;
-  periods.pop();
-}
+if (first) first.start = first.years.at(-1)!.year;
 // Each period's years, newest first as the list runs, gaps included, each
 // with its count, drawn as a bar over the period on the timeline.
 const yearCounts = new Map(grouped.map(({ year, items }) => [year, items.length]));
