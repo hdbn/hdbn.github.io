@@ -28,6 +28,7 @@ export interface Service {
 export const SERVICE: Service[] = [
   { role: "steering", event: "CPM", year: 2024 },
   { role: "organizing", event: "CPM", year: 2024, url: "https://cpm2024.github.io/" },
+  { role: "organizing", event: "ISAAC", year: 2021, url: "https://tcs.inf.kyushu-u.ac.jp/isaac2021/" },
   { role: "organizing", event: "SPIRE", year: 2016, url: "https://sites.google.com/site/spire2016jp/home" },
   { role: "pc", event: "SPIRE", year: 2026, url: "https://sites.google.com/view/spire-2026/" },
   { role: "pc", event: "ESA Track S", year: 2026, url: "https://algo-conference.org/2026/esa/" },
