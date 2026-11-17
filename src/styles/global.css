@@ -105,7 +105,7 @@
 
   /* An icon-only link, with a touch target of its own. */
   .tap-icon {
-    @apply grid h-9 w-9 cursor-pointer place-items-center rounded-full text-ink-muted hover:bg-brand-surface hover:text-brand;
+    @apply grid aspect-square w-full cursor-pointer place-items-center rounded-full text-ink-muted hover:bg-brand-surface hover:text-brand;
   }
 }
 

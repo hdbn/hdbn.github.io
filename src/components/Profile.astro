@@ -40,12 +40,16 @@ const portrait = Object.values(
       {PROFILE.initials}
     </div>
   )}
-  <div class="md:mt-6">
-    <a href={localizedPath(locale, '/')} class="block text-xl font-bold tracking-tight text-ink md:text-2xl">{PROFILE.name[locale]}</a>
+  <div class="min-w-0 flex-1 md:mt-6">
+    {/* On a phone the language switch sits at the top right, beside the
+        name: the name keeps clear of it, and goes onto two lines if it has to. */}
+    <a href={localizedPath(locale, '/')} class="block pr-20 text-xl font-bold tracking-tight text-ink md:pr-0 md:text-2xl print:pr-0">{PROFILE.name[locale]}</a>
     <p class="text-sm text-ink-muted" lang={other}>{PROFILE.name[other]}</p>
-    {/* On a phone, the links as a row of icons under the name; the labels come back on a wide screen. */}
+    {/* On a phone, the links as a row of icons under the name; the labels
+        come back on a wide screen. Each icon's button is 2.25rem across,
+        less on a phone too narrow for all of them in a row. */}
     <ul class="mt-1 -ml-2 flex items-center md:hidden print:hidden">
-      <li>
+      <li class="min-w-0 basis-9">
         <button
           type="button"
           class="email-reveal tap-icon"
@@ -57,7 +61,7 @@ const portrait = Object.values(
         </button>
       </li>
       {PROFILE_LINKS.map(({ label, href, icon }) => (
-        <li>
+        <li class="min-w-0 basis-9">
           <a href={href[locale]} class="tap-icon" title={label[locale]} aria-label={label[locale]}>
             <Icon name={icon} class="h-5 w-5" />
           </a>
