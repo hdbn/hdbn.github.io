@@ -33,6 +33,7 @@ if (first) first.start = first.years.at(-1)!.year;
 // Each period's years, newest first as the list runs, gaps included, each
 // with its count, drawn as a bar over the period on the timeline.
 const yearCounts = new Map(grouped.map(({ year, items }) => [year, items.length]));
+const rangeOf = ({ start, end }: { start: number; end: number }) => (start === end ? `${start}` : `${start}–${end}`);
 const barYears = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, i) => end - i);
 const barHeight = (n: number, max: number) => (n === 0 ? 0 : Math.max(8, (100 * n) / max));
 const maxYearCount = Math.max(...yearCounts.values());
@@ -116,7 +117,7 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       <div class="flex">
         {[...periods].reverse().map(({ start, end, count }) => {
           const open = start === periods[0].start;
-          const range = start === end ? `${start}` : `${start}–${end}`;
+          const range = rangeOf({ start, end });
           return (
             <button
               id={`pub-tab-${start}`}
@@ -173,6 +174,12 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       </div>
     </div>
 
+    <button type="button" class="pub-period-step flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden mb-6" data-step="1" hidden>
+      <Icon name="lucide:chevron-up" class="h-4 w-4 shrink-0" />
+      <span>{t.publications.later}</span>
+      <span class="pub-period-step-range font-semibold tabular-nums"></span>
+    </button>
+
     {periods.map(({ start, years }, i) => (
       <div
         id={`pub-period-${start}`}
@@ -193,6 +200,16 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
         ))}
       </div>
     ))}
+
+    {/* The list runs newest first, so the next period down, an earlier one,
+        is a step at its foot; the one up, a later one, a step at its head.
+        The script keeps them to the open period, skipping those the filters
+        leave empty. */}
+    <button type="button" class="pub-period-step flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden mt-6" data-step="-1" data-period={periods[1]?.start} hidden={!periods[1]}>
+      <Icon name="lucide:chevron-down" class="h-4 w-4 shrink-0" />
+      <span>{t.publications.earlier}</span>
+      <span class="pub-period-step-range font-semibold tabular-nums">{periods[1] && rangeOf(periods[1])}</span>
+    </button>
   </div>
 </Base>
 
@@ -235,6 +252,7 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
     const periods = [...list.querySelectorAll<HTMLElement>('.pub-period')];
     const tabs = [...list.querySelectorAll<HTMLButtonElement>('.pub-period-tab')];
     const bars = [...list.querySelectorAll<HTMLElement>('.pub-year-bar')];
+    const steps = [...list.querySelectorAll<HTMLButtonElement>('.pub-period-step')];
     let selected = periods[0]?.dataset.period;
 
     function selectPeriod(period: string, focus = false) {
@@ -245,6 +263,17 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
         tab.ariaSelected = String(on);
         tab.tabIndex = on ? 0 : -1;
         if (on && focus) tab.focus();
+      }
+      // The steps at the foot: the periods either side among those that can
+      // be opened, the tabs running oldest first.
+      const open = tabs.filter((tab) => !tab.disabled);
+      const i = open.findIndex((tab) => tab.dataset.period === period);
+      for (const step of steps) {
+        const to = i < 0 ? undefined : open[i + Number(step.dataset.step)];
+        step.hidden = !to;
+        if (!to) continue;
+        step.dataset.period = to.dataset.period;
+        step.querySelector('.pub-period-step-range')!.textContent = to.title;
       }
     }
 
@@ -310,7 +339,10 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       }
       const open = tabs.find((tab) => !tab.disabled && tab.dataset.period === selected) ?? tabs.findLast((tab) => !tab.disabled);
       if (open) selectPeriod(open.dataset.period!);
-      else for (const period of periods) period.hidden = true;
+      else {
+        for (const period of periods) period.hidden = true;
+        for (const step of steps) step.hidden = true;
+      }
       count.textContent = String(shown);
       unit.textContent = (shown === 1 ? unit.dataset.one : unit.dataset.many) ?? '';
       noMatches.classList.toggle('hidden', shown > 0);
@@ -328,6 +360,13 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       const tab = (event.target as Element).closest<HTMLButtonElement>('.pub-period-tab');
       if (tab) selectPeriod(tab.dataset.period!);
     });
+    // A step at the foot opens its period from the top, at the timeline.
+    for (const step of steps) {
+      step.addEventListener('click', () => {
+        selectPeriod(step.dataset.period!);
+        list.querySelector('.pub-period-tabs')!.scrollIntoView();
+      });
+    }
     // Arrow keys, Home and End move between the tabs, as tabs do.
     list.querySelector('.pub-period-tabs')!.addEventListener('keydown', (event) => {
       const key = (event as KeyboardEvent).key;
