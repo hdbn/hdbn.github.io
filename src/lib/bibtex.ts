@@ -102,6 +102,12 @@ function entryToPublication(entry: Entry): Publication {
   // Custom fields such as pdf/code/doi/arxiv aren't part of the parser's
   // typed schema, so they come through as plain strings via the index signature.
   const custom = fields as unknown as Record<string, string | undefined>;
+  // Those that go into links, unescaped: DBLP writes 10.1007/3-540-45452-7_15
+  // as 10.1007/3-540-45452-7\_15, and a browser reads the backslash in a link
+  // as a slash.
+  const link = (name: string) => custom[name]?.replace(/\\([_&%#$])/g, '$1');
+  const slides = link('slides');
+  const doi = link('doi');
 
   return {
     key: entry.key,
@@ -114,18 +120,18 @@ function entryToPublication(entry: Entry): Publication {
     abstract: custom.abstract,
     tags: [],
     type: typeOf(entry),
-    slides: custom.slides ? [{ url: custom.slides, format: fileFormat(custom.slides) }] : (SLIDES_BY_KEY.get(entry.key) ?? []),
+    slides: slides ? [{ url: slides, format: fileFormat(slides) }] : (SLIDES_BY_KEY.get(entry.key) ?? []),
     links: {
-      pdf: custom.pdf,
-      code: custom.code,
-      poster: custom.poster,
-      doi: custom.doi ? `https://doi.org/${custom.doi}` : undefined,
+      pdf: link('pdf'),
+      code: link('code'),
+      poster: link('poster'),
+      doi: doi ? `https://doi.org/${doi}` : undefined,
       // DBLP exports arXiv preprints as eprinttype=arXiv + eprint=<id>, rather
       // than a plain `arxiv` field.
-      arxiv: custom.arxiv
-        ? `https://arxiv.org/abs/${custom.arxiv}`
+      arxiv: link('arxiv')
+        ? `https://arxiv.org/abs/${link('arxiv')}`
         : custom.eprinttype?.toLowerCase() === 'arxiv' && custom.eprint
-          ? `https://arxiv.org/abs/${custom.eprint}`
+          ? `https://arxiv.org/abs/${link('eprint')}`
           : undefined,
     },
     rawBibtex: entry.input.trim(),
