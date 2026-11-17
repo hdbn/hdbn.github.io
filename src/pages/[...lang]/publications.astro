@@ -111,6 +111,8 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
         year's papers, its year under it. A period is picked as a span of the axis,
         which it then marks; the list itself runs newest first. */}
     <div class="pub-period-tabs mb-6 px-3 print:hidden" role="tablist" aria-label={t.publications.periods}>
+      {/* A period of one year (1999, and the newest when a period has just
+          begun) is given a little width, or its bar is a sliver on a phone. */}
       <div class="flex">
         {[...periods].reverse().map(({ start, end, count }) => {
           const open = start === periods[0].start;
@@ -125,7 +127,7 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
               tabindex={open ? 0 : -1}
               data-period={start}
               title={range}
-              style={`flex: ${end - start + 1} 1 0`}
+              style={`flex: ${end - start + 1} 1 0; min-width: ${start === end ? '1.25rem' : '0'}`}
               class="pub-period-tab group relative flex min-w-0 cursor-pointer flex-col items-stretch rounded-t-lg pt-1 pb-1.5 tabular-nums hover:bg-brand-surface/40 disabled:cursor-default disabled:hover:bg-transparent aria-selected:bg-brand-surface/60"
             >
               <span class="sr-only">{range}</span>
@@ -148,14 +150,15 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
                 {open && <span class="absolute top-0 right-0 h-2 w-px bg-ink-muted/50" />}
               </span>
               {/* Under each bar its year, turned to read upwards, the year a
-                  period starts darker than the rest. */}
+                  period starts darker than the rest. On a phone only the
+                  years periods start are shown, so that they do not overlap. */}
               <span class="mt-0.5 flex gap-[2px] px-[3px] sm:gap-1 sm:px-1" aria-hidden="true">
                 {barYears(start, end).reverse().map((year) => (
                   <span class="flex flex-1 justify-center">
                     <span
                       class:list={[
                         'rotate-180 text-[0.6rem] leading-none [writing-mode:vertical-rl] sm:text-[0.7rem]',
-                        year === start ? 'font-semibold text-ink' : 'text-ink-muted/80',
+                        year === start ? 'font-semibold text-ink' : 'text-ink-muted/80 max-sm:invisible',
                         'group-aria-selected:text-brand',
                       ]}
                     >
