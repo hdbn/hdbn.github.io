@@ -5,8 +5,7 @@ import Base from '../../layouts/Base.astro';
 import PublicationLine from '../../components/PublicationLine.astro';
 import TalkItem from '../../components/TalkItem.astro';
 import { TALKS } from '../../data/talks';
-import { PUBLICATIONS, SELECTED_PUBLICATIONS } from '../../lib/bibtex';
-import { TAGS } from '../../data/tags';
+import { PUBLICATIONS } from '../../lib/bibtex';
 import { localeStaticPaths, localizedPath, useTranslations, type Locale } from '../../lib/i18n';
 
 export const getStaticPaths = localeStaticPaths;
@@ -18,8 +17,8 @@ const t = useTranslations(locale);
 const about = import.meta.glob<MarkdownInstance<Record<string, never>>>('../../data/about/*.md', { eager: true });
 const About = about[`../../data/about/${locale}.md`].Content;
 
-// The newest, leaving out those already listed as selected.
-const recent = PUBLICATIONS.filter((p) => !p.selected).slice(0, 3);
+// The newest three.
+const recent = PUBLICATIONS.slice(0, 3);
 ---
 
 <Base locale={locale} description={t.description}>
@@ -30,18 +29,6 @@ const recent = PUBLICATIONS.filter((p) => !p.selected).slice(0, 3);
     >
       <About />
     </div>
-  </section>
-
-  <section class="card mt-10">
-    <h2 class="section-heading">{t.home.selected}</h2>
-    {SELECTED_PUBLICATIONS.map(({ theme, publications }) => (
-      <section class="mt-6">
-        <h3 class="border-l-[3px] border-topic pl-2 text-sm leading-tight font-semibold text-topic">{TAGS[theme][locale]}</h3>
-        <ul>
-          {publications.map((publication) => <PublicationLine locale={locale} publication={publication} />)}
-        </ul>
-      </section>
-    ))}
   </section>
 
   <section class="card mt-10">

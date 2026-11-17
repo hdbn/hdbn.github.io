@@ -1,8 +1,11 @@
 ---
+import { Icon } from 'astro-icon/components';
 import Base from '../../layouts/Base.astro';
+import PublicationLine from '../../components/PublicationLine.astro';
 import { CAREER, EDUCATION } from '../../data/career';
 import { SERVICE, type Service } from '../../data/service';
-import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
+import { SELECTED_PUBLICATIONS } from '../../lib/bibtex';
+import { localeStaticPaths, localizedPath, useTranslations, type Locale } from '../../lib/i18n';
 
 export const getStaticPaths = localeStaticPaths;
 
@@ -117,6 +120,17 @@ const service = roles
         </li>
       ))}
     </ol>
+  </section>
+
+  <section class="card mt-10">
+    <h2 class="section-heading">{t.cv.selected}</h2>
+    <ul class="mt-2">
+      {SELECTED_PUBLICATIONS.map((publication) => <PublicationLine locale={locale} publication={publication} />)}
+    </ul>
+    <a href={localizedPath(locale, '/publications/')} class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+      {t.cv.allPublications}
+      <Icon name="lucide:arrow-right" class="h-4 w-4" />
+    </a>
   </section>
 
   {service.length > 0 && (

@@ -1,7 +1,9 @@
 ---
-// A publication in two lines, for the home page: the title, linking to its
-// entry in the full list, then the venue and the award or the line on why.
+// A publication in three lines, for the home and CV pages: the title, linking to its
+// entry in the full list, then the venue and the award or the line on why,
+// then the paper's topics.
 import Star from './Star.astro';
+import { TAGS } from '../data/tags';
 import { publicationAnchor, shortVenue, titleHtml, type Publication } from '../lib/bibtex';
 import { localizedPath, useTranslations, type Locale } from '../lib/i18n';
 
@@ -29,4 +31,11 @@ const award = venue && publication.note?.startsWith(`${venue} `) ? publication.n
     {award && <span class="font-semibold text-accent"> · {award}</span>}
     {why && <span class="text-ink"> · {why}</span>}
   </p>
+  {publication.tags.length > 0 && (
+    <p class="mt-1.5 flex flex-wrap gap-1">
+      {publication.tags.map((tag) => (
+        <span class="rounded bg-topic-surface px-1.5 py-px text-[0.7rem] font-medium text-topic">{TAGS[tag][locale]}</span>
+      ))}
+    </p>
+  )}
 </li>

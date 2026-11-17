@@ -116,7 +116,7 @@ function entryToPublication(entry: Entry): Publication {
     year: Number(fields.year ?? 0),
     venue: venueOf(entry),
     note: custom.note ?? AWARDS[entry.key],
-    selected: SELECTED.flatMap((theme) => theme.papers).find((s) => s.key === entry.key),
+    selected: SELECTED.find((s) => s.key === entry.key),
     abstract: custom.abstract,
     tags: [],
     type: typeOf(entry),
@@ -253,15 +253,12 @@ export function publicationAnchor(key: string): string {
   return `pub-${key.replace(/[^A-Za-z0-9_-]/g, '-')}`;
 }
 
-/** The selected publications, by theme, in data/selected.ts's order. */
-export const SELECTED_PUBLICATIONS = SELECTED.map(({ theme, papers }) => ({
-  theme,
-  publications: papers.map(({ key }) => {
-    const publication = PUBLICATIONS.find((p) => p.key === key);
-    if (!publication) throw new Error(`data/selected.ts: no publication ${key} in hideo-bannai.bib`);
-    return publication;
-  }),
-}));
+/** The selected publications, newest first. */
+export const SELECTED_PUBLICATIONS = SELECTED.map(({ key }) => {
+  const publication = PUBLICATIONS.find((p) => p.key === key);
+  if (!publication) throw new Error(`data/selected.ts: no publication ${key} in hideo-bannai.bib`);
+  return publication;
+}).sort((a, b) => b.year - a.year);
 
 /**
  * A title as HTML. The parser turns LaTeX markup into tags (\emph{r} → <i>r</i>,
