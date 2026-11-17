@@ -132,3 +132,48 @@ const nav = [
     </div>
   </body>
 </html>
+
+<script>
+  import { prepare } from '../scripts/publication-list';
+
+  // The publication list, coming in by the router, is drawn as its address
+  // and history entry have it before it is swapped in: the router then puts
+  // the page where the reader left it, which is found only in that list.
+  // Going Back or Forward, the history entry is already the new page's; on
+  // a link, a new one, with nothing kept.
+  document.addEventListener('astro:before-swap', (event) => {
+    prepare(event.newDocument, event.to.hash, event.navigationType === 'traverse' ? history.state : null);
+  });
+
+  // The place on the page, kept in its history entry for the router, which
+  // goes back to it on Back, also from another site (a DOI, a PDF). The
+  // router keeps it itself only on scrollend; it is kept here too, a moment
+  // after the page stops moving, and as a link is pressed, before the page
+  // is left, so that it is there whatever the browser does about scrollend.
+  // Once the page is going, the browser lets no history be written.
+  const keepPlace = () => {
+    if (history.state && (history.state.scrollX !== scrollX || history.state.scrollY !== scrollY)) {
+      history.replaceState({ ...history.state, scrollX, scrollY }, '');
+    }
+  };
+  let settling: number | undefined;
+  addEventListener(
+    'scroll',
+    () => {
+      clearTimeout(settling);
+      settling = window.setTimeout(keepPlace, 150);
+    },
+    { passive: true },
+  );
+  document.addEventListener('pointerdown', keepPlace, { capture: true, passive: true });
+  document.addEventListener('click', keepPlace, { capture: true });
+
+  // Coming Back to a page the browser kept whole (the back/forward cache),
+  // Safari leaves it at the top, as the router has the browser not restore
+  // places itself; it is put back where the entry has it.
+  addEventListener('pageshow', (event) => {
+    if (!event.persisted || typeof history.state?.scrollY !== 'number') return;
+    const { scrollX: x = 0, scrollY: y } = history.state;
+    if (x !== scrollX || y !== scrollY) scrollTo({ left: x, top: y, behavior: 'instant' });
+  });
+</script>

@@ -5,6 +5,8 @@ import PublicationCard from '../../components/PublicationCard.astro';
 import { PUBLICATIONS, groupByYear, type Publication } from '../../lib/bibtex';
 import { TAGS, type Tag } from '../../data/tags';
 import { localeStaticPaths, useTranslations, type Locale } from '../../lib/i18n';
+import ts from 'typescript';
+import listSource from '../../scripts/publication-list.ts?raw';
 
 export const getStaticPaths = localeStaticPaths;
 
@@ -13,8 +15,11 @@ const t = useTranslations(locale);
 
 const grouped = groupByYear(PUBLICATIONS);
 
-// The list is long, so it is cut into five-year periods, one shown at a time
-// behind tabs, as on the DSCalgo lab site: 2025–2026, 2020–2024, …
+// The list is long, so a range of years is shown at a time, picked as a
+// five-year period on a timeline, as on the DSCalgo lab site: 2025–2026,
+// 2020–2024, … The address can name other years (#2007-2012), and these are
+// shown too, marked on the timeline year by year. To begin with, the latest
+// period.
 const periods: { start: number; end: number; years: typeof grouped; count: number }[] = [];
 for (const group of grouped) {
   const start = Math.floor(group.year / 5) * 5;
@@ -30,13 +35,26 @@ for (const group of grouped) {
 // runs from it, so 1999 is a period of one year.
 const first = periods.at(-1);
 if (first) first.start = first.years.at(-1)!.year;
-// Each period's years, newest first as the list runs, gaps included, each
-// with its count, drawn as a bar over the period on the timeline.
+const firstYear = first!.start;
+const lastYear = grouped[0].year;
+// Each year's papers, gaps included, drawn as a bar over its period.
 const yearCounts = new Map(grouped.map(({ year, items }) => [year, items.length]));
 const rangeOf = ({ start, end }: { start: number; end: number }) => (start === end ? `${start}` : `${start}–${end}`);
-const barYears = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, i) => end - i);
+const barYears = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
 const barHeight = (n: number, max: number) => (n === 0 ? 0 : Math.max(8, (100 * n) / max));
 const maxYearCount = Math.max(...yearCounts.values());
+const latest = periods[0];
+const inLatest = (year: number) => year >= latest.start;
+
+// The list drawn as the address and the history entry have it, inline just
+// after it so that it runs as the page is read: before the browser or the
+// router puts the page back where the reader left it, which a module script
+// would be too late for. See scripts/publication-list.ts.
+const prepareInline = `(() => { const exports = {}; ${
+  ts.transpileModule(listSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, removeComments: true },
+  }).outputText
+} exports.prepare(document, location.hash, history.state); })();`;
 
 // Peer-reviewed first, then the rest.
 const typeOrder: Publication['type'][] = ['journal', 'proceedings', 'book', 'preprint', 'report', 'thesis'];
@@ -48,7 +66,7 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
 <Base locale={locale} title={t.publications.heading} description={t.publications.description}>
   <h1 class="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t.publications.heading}</h1>
 
-  <div class="publication-list mt-6">
+  <div class="publication-list mt-6" data-first-year={firstYear} data-last-year={lastYear}>
     <div class="mb-4 flex flex-wrap items-center gap-3 text-sm print:hidden">
       <label class="relative flex-1 basis-64">
         <span class="sr-only">{t.publications.searchLabel}</span>
@@ -61,7 +79,7 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
         <Icon name="lucide:search" class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
       </label>
       <span class="text-ink-muted">
-        <span class="pub-count tabular-nums">{PUBLICATIONS.length}</span>
+        <span class="pub-count tabular-nums">{latest.count}</span>
         {locale === 'en' && ' '}<span class="pub-count-unit" data-one={t.publications.countOne} data-many={t.publications.countMany}>{t.publications.countMany}</span>
       </span>
     </div>
@@ -103,64 +121,64 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       </div>
     )}
 
-    <p class="pub-no-matches hidden text-ink-muted">{t.publications.noMatches}</p>
-
-    {/* The newest period is open to begin with, in the HTML itself, so that
-        the page does not show every period until the script has run. */}
     {/* A time axis, oldest on the left, to scale, a year to a bar, cut into
         the five-year periods: a tick where each starts, and a bar for each
-        year's papers, its year under it. A period is picked as a span of the axis,
-        which it then marks; the list itself runs newest first. */}
-    <div class="pub-period-tabs mb-6 px-3 print:hidden" role="tablist" aria-label={t.publications.periods}>
+        year's papers, its year under it. A period is picked as a span of the
+        axis; the bars of the years shown are dark, whether or not they are a
+        period. The list itself runs newest first. */}
+    <div class="pub-timeline mb-6 print:hidden" role="group" aria-label={t.publications.timeline}>
+      <div class="mb-1 flex items-baseline justify-between gap-3 px-3 text-sm">
+        <span class="pub-range-text font-semibold text-brand tabular-nums">{rangeOf(latest)}</span>
+        <button type="button" class="pub-range-all cursor-pointer rounded-full border border-line bg-card px-2.5 py-0.5 text-xs font-medium text-ink-muted hover:border-brand hover:text-brand disabled:cursor-default disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-muted">
+          {t.publications.allYears}
+        </button>
+      </div>
       {/* A period of one year (1999, and the newest when a period has just
           begun) is given a little width, or its bar is a sliver on a phone. */}
-      <div class="flex">
+      <div class="flex px-3">
         {[...periods].reverse().map(({ start, end, count }) => {
-          const open = start === periods[0].start;
           const range = rangeOf({ start, end });
           return (
             <button
-              id={`pub-tab-${start}`}
               type="button"
-              role="tab"
-              aria-controls={`pub-period-${start}`}
-              aria-selected={open ? 'true' : 'false'}
-              tabindex={open ? 0 : -1}
-              data-period={start}
+              aria-pressed={start === latest.start ? 'true' : 'false'}
+              data-from={start}
+              data-to={end}
               title={range}
               style={`flex: ${end - start + 1} 1 0; min-width: ${start === end ? '1.25rem' : '0'}`}
-              class="pub-period-tab group relative flex min-w-0 cursor-pointer flex-col items-stretch rounded-t-lg pt-1 pb-1.5 tabular-nums hover:bg-brand-surface/40 disabled:cursor-default disabled:hover:bg-transparent aria-selected:bg-brand-surface/60"
+              class="pub-period-tab group relative flex min-w-0 cursor-pointer flex-col items-stretch rounded-t-lg pt-1 pb-1.5 tabular-nums hover:bg-brand-surface/40 disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-brand-surface/60"
             >
               <span class="sr-only">{range}</span>
-              <span class="pub-period-count text-center text-[0.7rem] text-ink-muted/80 group-disabled:opacity-40 group-aria-selected:font-semibold group-aria-selected:text-brand">{count}</span>
+              <span class="pub-period-count text-center text-[0.7rem] text-ink-muted/80 group-disabled:opacity-40 group-aria-pressed:font-semibold group-aria-pressed:text-brand">{count}</span>
               <span class="flex h-12 items-end gap-[2px] px-[3px] group-disabled:opacity-40 sm:gap-1 sm:px-1" aria-hidden="true">
-                {barYears(start, end).reverse().map((year) => (
+                {barYears(start, end).map((year) => (
                   <span
-                    class="pub-year-bar flex-1 rounded-t-[3px] bg-ink-muted/25 transition-[height] group-hover:bg-brand-soft group-aria-selected:bg-brand"
+                    class="pub-year-bar flex-1 rounded-t-[3px] bg-ink-muted/25 transition-[height] group-hover:bg-brand-soft data-in:bg-brand"
                     data-year={year}
+                    data-in={inLatest(year) ? '' : undefined}
                     style={`height: ${barHeight(yearCounts.get(year) ?? 0, maxYearCount)}%`}
                     title={`${year}: ${yearCounts.get(year) ?? 0}`}
                   />
                 ))}
               </span>
-              {/* The axis, thick and dark along the open period; a tick at
+              {/* The axis, thick and dark along the period picked; a tick at
                   the period's start, and at the very end of the axis. */}
               <span class="relative mt-1 h-2" aria-hidden="true">
-                <span class="absolute inset-x-0 top-0 h-px bg-ink-muted/40 group-aria-selected:h-1 group-aria-selected:bg-brand" />
+                <span class="absolute inset-x-0 top-0 h-px bg-ink-muted/40 group-aria-pressed:h-1 group-aria-pressed:bg-brand" />
                 <span class="absolute top-0 left-0 h-2 w-px bg-ink-muted/50" />
-                {open && <span class="absolute top-0 right-0 h-2 w-px bg-ink-muted/50" />}
+                {start === latest.start && <span class="absolute top-0 right-0 h-2 w-px bg-ink-muted/50" />}
               </span>
               {/* Under each bar its year, turned to read upwards, the year a
                   period starts darker than the rest. On a phone only the
                   years periods start are shown, so that they do not overlap. */}
               <span class="mt-0.5 flex gap-[2px] px-[3px] sm:gap-1 sm:px-1" aria-hidden="true">
-                {barYears(start, end).reverse().map((year) => (
+                {barYears(start, end).map((year) => (
                   <span class="flex flex-1 justify-center">
                     <span
                       class:list={[
                         'rotate-180 text-[0.6rem] leading-none [writing-mode:vertical-rl] sm:text-[0.7rem]',
                         year === start ? 'font-semibold text-ink' : 'text-ink-muted/80 max-sm:invisible',
-                        'group-aria-selected:text-brand',
+                        'group-aria-pressed:text-brand',
                       ]}
                     >
                       {year}
@@ -174,220 +192,148 @@ const tags = (Object.keys(TAGS) as Tag[]).filter((tag) => PUBLICATIONS.some((p) 
       </div>
     </div>
 
-    <button type="button" class="pub-period-step flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden mb-6" data-step="1" hidden>
+    <button type="button" class="pub-range-step mb-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden" data-step="1" hidden>
       <Icon name="lucide:chevron-up" class="h-4 w-4 shrink-0" />
       <span>{t.publications.later}</span>
-      <span class="pub-period-step-range font-semibold tabular-nums"></span>
+      <span class="pub-range-step-text font-semibold tabular-nums"></span>
     </button>
 
-    {periods.map(({ start, years }, i) => (
-      <div
-        id={`pub-period-${start}`}
-        class="pub-period space-y-6"
-        data-period={start}
-        role="tabpanel"
-        aria-labelledby={`pub-tab-${start}`}
-        hidden={i > 0}
-      >
-        {years.map(({ year, items }) => (
-          <section class="pub-year card" data-year={year}>
-            {/* Stays at the top while its year scrolls by. */}
-            <h2 class="sticky top-0 z-10 flex items-center gap-4 bg-card pt-1 pb-2 text-2xl font-bold tracking-tight text-brand tabular-nums after:h-px after:flex-1 after:bg-line print:static">{year}</h2>
-            <ul>
-              {items.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
-            </ul>
-          </section>
-        ))}
-      </div>
-    ))}
+    <p class="pub-no-matches hidden text-ink-muted">
+      <span class="pub-nowhere" hidden>{t.publications.noMatches}</span>
+      <span class="pub-elsewhere">
+        {t.publications.noneInRange}{' '}
+        <button type="button" class="pub-range-all cursor-pointer text-brand hover:underline">
+          {t.publications.allYears} (<span class="pub-elsewhere-count tabular-nums"></span>)
+        </button>
+      </span>
+    </p>
 
-    {/* The list runs newest first, so the next period down, an earlier one,
-        is a step at its foot; the one up, a later one, a step at its head.
-        The script keeps them to the open period, skipping those the filters
-        leave empty. */}
-    <button type="button" class="pub-period-step flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden mt-6" data-step="-1" data-period={periods[1]?.start} hidden={!periods[1]}>
+    <div class="pub-years space-y-6">
+      {grouped.map(({ year, items }) => (
+        <section class="pub-year card" data-year={year} data-out={inLatest(year) ? undefined : ''}>
+          {/* Stays at the top while its year scrolls by. */}
+          <h2 class="sticky top-0 z-10 flex items-center gap-4 bg-card pt-1 pb-2 text-2xl font-bold tracking-tight text-brand tabular-nums after:h-px after:flex-1 after:bg-line print:static">{year}</h2>
+          <ul>
+            {items.map((publication) => <PublicationCard locale={locale} publication={publication} />)}
+          </ul>
+        </section>
+      ))}
+    </div>
+
+    {/* The list runs newest first, so the earlier years are a step at its
+        foot, the later ones a step at its head: as many years as are shown. */}
+    <button type="button" class="pub-range-step mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm text-ink-muted hover:border-brand hover:text-brand print:hidden" data-step="-1" data-from={periods[1]?.start} data-to={periods[1]?.end} hidden={!periods[1]}>
       <Icon name="lucide:chevron-down" class="h-4 w-4 shrink-0" />
       <span>{t.publications.earlier}</span>
-      <span class="pub-period-step-range font-semibold tabular-nums">{periods[1] && rangeOf(periods[1])}</span>
+      <span class="pub-range-step-text font-semibold tabular-nums">{periods[1] && rangeOf(periods[1])}</span>
     </button>
+    <script is:inline set:html={prepareInline} />
   </div>
 </Base>
 
 <script>
+  import { navigate } from 'astro:transitions/client';
+  import {
+    bounds,
+    clampRange,
+    hashTarget,
+    rangeHash,
+    readFilters,
+    render,
+    sameRange,
+    show,
+    type Filters,
+    type Range,
+  } from '../../scripts/publication-list';
+
   // Each time a page comes in (the site swaps pages in place, see Base.astro);
   // only the publication list has anything to set up. What it listens for on
   // the window is dropped when the next page comes in.
+  //
+  // The years shown are in the address, #2015-2020, so that picking them is a
+  // step in the history, and Back goes to the years before, or to the paper a
+  // link came to. The search and filters are kept in the history entry. The
+  // list has already been drawn from both (scripts/publication-list.ts).
   let listeners: AbortController | null = null;
   document.addEventListener('astro:page-load', () => {
     listeners?.abort();
     const list = document.querySelector<HTMLElement>('.publication-list');
     if (!list) return;
     listeners = new AbortController();
-    const items = [...list.querySelectorAll<HTMLElement>('.pub-item')];
-    const years = [...list.querySelectorAll<HTMLElement>('.pub-year')];
-    const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-    // The searchable words: the title, authors, venue and line on the paper,
-    // its year, and its abstract, folded up but there in the page. Set by
-    // KaTeX, a formula reads as its letters run together ("O(nlogn)").
-    const searchable = new Map(
-      items.map((item) => [
-        item,
-        fold(
-          [
-            item.querySelector('h3')?.textContent,
-            ...[...item.querySelectorAll(':scope > p')].map((p) => p.textContent),
-            item.closest('.pub-year')?.querySelector('h2')?.textContent,
-            item.querySelector('.pub-abstract')?.textContent,
-          ].join(' '),
-        ),
-      ]),
-    );
-    const search = list.querySelector<HTMLInputElement>('.pub-search')!;
-    const count = list.querySelector<HTMLElement>('.pub-count')!;
-    const noMatches = list.querySelector<HTMLElement>('.pub-no-matches')!;
-    const chips = [...list.querySelectorAll<HTMLButtonElement>('.pub-filter-chip')];
-    const awardChip = list.querySelector<HTMLButtonElement>('.pub-award-chip')!;
-    const tagChips = [...list.querySelectorAll<HTMLButtonElement>('.pub-tag-chip')];
-    const unit = list.querySelector<HTMLElement>('.pub-count-unit')!;
-    const periods = [...list.querySelectorAll<HTMLElement>('.pub-period')];
-    const tabs = [...list.querySelectorAll<HTMLButtonElement>('.pub-period-tab')];
-    const bars = [...list.querySelectorAll<HTMLElement>('.pub-year-bar')];
-    const steps = [...list.querySelectorAll<HTMLButtonElement>('.pub-period-step')];
-    let selected = periods[0]?.dataset.period;
+    const { signal } = listeners;
+    const path = location.pathname;
+    const timeline = list.querySelector<HTMLElement>('.pub-timeline')!;
+    let shown: Range = show(list, location.hash, history.state);
 
-    function selectPeriod(period: string, focus = false) {
-      selected = period;
-      for (const panel of periods) panel.hidden = panel.dataset.period !== period;
-      for (const tab of tabs) {
-        const on = tab.dataset.period === period;
-        tab.ariaSelected = String(on);
-        tab.tabIndex = on ? 0 : -1;
-        if (on && focus) tab.focus();
-      }
-      // The steps at the foot: the periods either side among those that can
-      // be opened, the tabs running oldest first.
-      const open = tabs.filter((tab) => !tab.disabled);
-      const i = open.findIndex((tab) => tab.dataset.period === period);
-      for (const step of steps) {
-        const to = i < 0 ? undefined : open[i + Number(step.dataset.step)];
-        step.hidden = !to;
-        if (!to) continue;
-        step.dataset.period = to.dataset.period;
-        step.querySelector('.pub-period-step-range')!.textContent = to.title;
-      }
+    // Keeps the filters in this entry, and drops a paper's #pub-… from the
+    // address once the reader has moved on from it.
+    function filtersChanged() {
+      const filters = readFilters(list!);
+      render(list!, shown, filters);
+      // An entry the browser made itself has no state, and is not the
+      // router's to restore; one given state would confuse it.
+      if (!history.state) return;
+      const url = hashTarget(list!, location.hash) ? rangeHash(shown) : undefined;
+      history.replaceState({ ...history.state, publications: filters }, '', url);
     }
 
-    // A link to one paper (from the home page, a talk) opens its period
-    // first, clearing any filter that hides it, then goes to it.
-    function showHashTarget() {
-      let id: string;
-      try {
-        id = decodeURIComponent(location.hash.slice(1));
-      } catch {
-        return;
-      }
-      const target = id ? document.getElementById(id) : null;
-      const panel = target?.closest<HTMLElement>('.pub-period');
-      if (!target || !panel) return;
-      if (target.hidden) {
-        search.value = '';
-        for (const chip of [awardChip, ...chips, ...tagChips]) chip.ariaPressed = 'false';
-        apply();
-      }
-      selectPeriod(panel.dataset.period!);
-      requestAnimationFrame(() => target.scrollIntoView());
+    // Years picked are a step in the history: the router's, so that it keeps
+    // the place on the page for it. The list follows only after the router
+    // has kept the place in the entry left, as fewer years pull the page up.
+    // However they are picked, the page stays where it is if the timeline is
+    // still in sight, and else goes up to it, at the head of the new list
+    // (from the step at the foot, or a long way down). The router records
+    // the new entry as at the top until the reader scrolls, so it is told
+    // where the page is.
+    async function go(range: Range) {
+      range = clampRange(list!, range);
+      if (sameRange(range, shown) && location.hash === rangeHash(range)) return;
+      const filters = readFilters(list!);
+      await navigate(rangeHash(range), { state: { publications: filters } });
+      shown = range;
+      render(list!, range, filters);
+      const { top, bottom } = timeline.getBoundingClientRect();
+      if (top < 0 || bottom > innerHeight) timeline.scrollIntoView();
+      if (history.state) history.replaceState({ ...history.state, scrollX, scrollY }, '');
     }
 
-    function apply() {
-      // No chip pressed means every type, not none.
-      const onlyAwarded = awardChip.ariaPressed === 'true';
-      const pressed = new Set(chips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value));
-      // Topics as types: any of those pressed, and none pressed means all.
-      const pressedTags = tagChips.filter((chip) => chip.ariaPressed === 'true').map((chip) => chip.dataset.value!);
-      // Every word has to appear somewhere, so typing more narrows the list.
-      const words = fold(search.value).split(/\s+/).filter(Boolean);
-      let shown = 0;
-      for (const item of items) {
-        const text = searchable.get(item) ?? '';
-        const visible =
-          (!onlyAwarded || item.dataset.award !== undefined) &&
-          (pressed.size === 0 || pressed.has(item.dataset.pubType)) &&
-          (pressedTags.length === 0 || pressedTags.some((tag) => (item.dataset.tags ?? '').split(' ').includes(tag))) &&
-          words.every((word) => text.includes(word));
-        item.hidden = !visible;
-        if (visible) shown++;
-      }
-      for (const year of years) {
-        year.hidden = !year.querySelector('.pub-item:not([hidden])');
-      }
-      // Each period on the timeline counts what the filters leave in it, and
-      // its bars what they leave in each year, against the fullest year left;
-      // a period left empty cannot be opened, and the open one moves to the
-      // newest left.
-      for (const period of periods) {
-        const left = period.querySelectorAll('.pub-item:not([hidden])').length;
-        const tab = tabs.find((t) => t.dataset.period === period.dataset.period)!;
-        tab.disabled = left === 0;
-        tab.querySelector('.pub-period-count')!.textContent = String(left);
-      }
-      const perYear = new Map(years.map((year) => [year.dataset.year, year.querySelectorAll('.pub-item:not([hidden])').length]));
-      const fullest = Math.max(1, ...perYear.values());
-      for (const bar of bars) {
-        const n = perYear.get(bar.dataset.year) ?? 0;
-        bar.style.height = n === 0 ? '0' : `${Math.max(8, (100 * n) / fullest)}%`;
-        bar.title = `${bar.dataset.year}: ${n}`;
-      }
-      const open = tabs.find((tab) => !tab.disabled && tab.dataset.period === selected) ?? tabs.findLast((tab) => !tab.disabled);
-      if (open) selectPeriod(open.dataset.period!);
-      else {
-        for (const period of periods) period.hidden = true;
-        for (const step of steps) step.hidden = true;
-      }
-      count.textContent = String(shown);
-      unit.textContent = (shown === 1 ? unit.dataset.one : unit.dataset.many) ?? '';
-      noMatches.classList.toggle('hidden', shown > 0);
-    }
-
-    for (const chip of [awardChip, ...chips, ...tagChips]) {
+    for (const chip of list.querySelectorAll<HTMLButtonElement>('.pub-award-chip, .pub-filter-chip, .pub-tag-chip')) {
       chip.addEventListener('click', () => {
         chip.ariaPressed = chip.ariaPressed === 'true' ? 'false' : 'true';
-        apply();
+        filtersChanged();
       });
     }
-    search.addEventListener('input', apply);
+    list.querySelector<HTMLInputElement>('.pub-search')!.addEventListener('input', filtersChanged);
 
-    list.querySelector('.pub-period-tabs')!.addEventListener('click', (event) => {
-      const tab = (event.target as Element).closest<HTMLButtonElement>('.pub-period-tab');
-      if (tab) selectPeriod(tab.dataset.period!);
-    });
-    // A step at the foot opens its period from the top, at the timeline.
-    for (const step of steps) {
-      step.addEventListener('click', () => {
-        selectPeriod(step.dataset.period!);
-        list.querySelector('.pub-period-tabs')!.scrollIntoView();
-      });
+    for (const tab of list.querySelectorAll<HTMLButtonElement>('.pub-period-tab')) {
+      tab.addEventListener('click', () => go({ from: Number(tab.dataset.from), to: Number(tab.dataset.to) }));
     }
-    // Arrow keys, Home and End move between the tabs, as tabs do.
-    list.querySelector('.pub-period-tabs')!.addEventListener('keydown', (event) => {
-      const key = (event as KeyboardEvent).key;
-      const tab = (event.target as Element).closest<HTMLButtonElement>('.pub-period-tab');
-      if (!tab) return;
-      const shown = tabs.filter((t) => !t.disabled);
-      const i = shown.indexOf(tab);
-      const next =
-        key === 'ArrowRight' ? shown[(i + 1) % shown.length]
-        : key === 'ArrowLeft' ? shown[(i - 1 + shown.length) % shown.length]
-        : key === 'Home' ? shown[0]
-        : key === 'End' ? shown.at(-1)
-        : undefined;
-      if (next) {
-        event.preventDefault();
-        selectPeriod(next.dataset.period!, true);
-      }
-    });
+    for (const all of list.querySelectorAll<HTMLButtonElement>('.pub-range-all')) {
+      all.addEventListener('click', () => go(bounds(list!)));
+    }
+    // A step at the head or foot: the period next to the years shown.
+    for (const step of list.querySelectorAll<HTMLButtonElement>('.pub-range-step')) {
+      step.addEventListener('click', () => go({ from: Number(step.dataset.from), to: Number(step.dataset.to) }));
+    }
 
-    if (location.hash) showHashTarget();
-    // A link to a paper on this same page changes only the hash.
-    window.addEventListener('hashchange', showHashTarget, { signal: listeners.signal });
+    // Back and Forward within the page, or a hash typed in: the list as that
+    // entry has it, drawn before the router scrolls to the entry's place
+    // (this listens first, in the capture phase), and scrolled there again
+    // in case it did not. With no state, it is the browser following a hash
+    // the router left to it, and a paper's is gone to.
+    addEventListener(
+      'popstate',
+      (event) => {
+        if (location.pathname !== path || !list.isConnected) return;
+        shown = show(list, location.hash, history.state);
+        if (event.state === null) {
+          hashTarget(list, location.hash)?.scrollIntoView();
+        } else if (typeof history.state?.scrollY === 'number') {
+          scrollTo({ left: history.state.scrollX ?? 0, top: history.state.scrollY, behavior: 'instant' });
+        }
+      },
+      { capture: true, signal },
+    );
   });
 </script>
+

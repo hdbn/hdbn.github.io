@@ -37,12 +37,14 @@
 }
 
 @layer base {
-  /* On paper, every period of the publication list, not just the open one.
-     In this layer, as an !important outside it would lose to Tailwind's own
-     [hidden] { display: none !important } here. */
+  /* The publication list's years out of the range picked; on paper, every
+     year, not just those. */
+  .pub-year[data-out] {
+    display: none;
+  }
   @media print {
-    .pub-period[hidden] {
-      display: block !important;
+    .pub-year[data-out]:not([hidden]) {
+      display: block;
     }
   }
 
