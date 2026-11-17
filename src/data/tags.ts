@@ -448,4 +448,17 @@ export const PAPER_TAGS: Record<string, Tag[]> = {
   "DBLP:conf/dis/BannaiTMM01": ["bioinformatics"],
   // A Definition of Discovery in Terms of Generalized Descriptional Complexity (1999)
   "DBLP:conf/dis/BannaiM98": ["bioinformatics"],
+  // Papers in not-in-dblp.bib.
+  // Transcriptional profiling of hematopoietic stem cells by high-throughput sequencing (2009)
+  "local:IJH/YashiroBMYMOIN09": ["bioinformatics"],
+  // Contribution of comparative fish studies to general endocrinology (2006)
+  "local:JEZA/TakeiKTYOIHBM06": ["bioinformatics"],
+  // Identification of novel adrenomedullin in mammals (2004)
+  "local:FEBS/TakeiIOKBM04": ["bioinformatics"],
+  // Yeast [PSI+] "Prions" that Are Crosstransmissible ... (2001)
+  "local:MolCell/NakayashikiEBN01": ["bioinformatics"],
+  // A String Pattern Regression Algorithm and Its Application to Pattern Discovery in Long Introns (2002)
+  "local:GIW/BannaiISTM02": ["bioinformatics"],
+  // Towards Automatic Construction of Cell-Lineage of C. elegans from Nomarski DIC Microscope Images (1999)
+  "local:GIW/YasudaBOMK99": ["bioinformatics"],
 };

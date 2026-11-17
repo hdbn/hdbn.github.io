@@ -1,7 +1,8 @@
 // Taken from the DSCalgo lab site's lib/bibtex.ts, cut down to one person's
 // bib file: the lab's member matching became `ME`.
 import { parse, type Creator, type Entry } from '@retorquere/bibtex-parser';
-import bib from '../data/hideo-bannai.bib?raw';
+import dblpBib from '../data/hideo-bannai.bib?raw';
+import localBib from '../data/not-in-dblp.bib?raw';
 import { AWARDS } from '../data/awards';
 import { SELECTED } from '../data/selected';
 import { SUMMARIES } from '../data/summaries';
@@ -142,15 +143,18 @@ function normalizeTitle(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
-function loadPublications(source: string): Publication[] {
+function parseBib(name: string, source: string): Entry[] {
   // DBLP's exports are already correctly capitalized; the parser's default
   // English sentence-casing would otherwise lowercase proper nouns (city
   // names, acronyms) in titles and venue names.
   const { entries, errors } = parse(source, { sentenceCase: false });
   if (errors.length > 0) {
-    throw new Error(`Failed to parse hideo-bannai.bib: ${errors.map((e) => e.error).join('; ')}`);
+    throw new Error(`Failed to parse ${name}: ${errors.map((e) => e.error).join('; ')}`);
   }
+  return entries;
+}
 
+function loadPublications(entries: Entry[]): Publication[] {
   const corrEntries = entries.filter((entry) => isCorrEntry(entry));
   const publishedEntries = entries.filter((entry) => !isCorrEntry(entry));
 
@@ -218,7 +222,11 @@ function loadPublications(source: string): Publication[] {
   return publications.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
 }
 
-export const PUBLICATIONS = loadPublications(bib);
+// The DBLP export, and the papers DBLP does not list, written in its style.
+export const PUBLICATIONS = loadPublications([
+  ...parseBib('hideo-bannai.bib', dblpBib),
+  ...parseBib('not-in-dblp.bib', localBib),
+]);
 
 /**
  * DBLP's conference `venue` strings often already end with the year (and
@@ -256,7 +264,7 @@ export function publicationAnchor(key: string): string {
 /** The selected publications, newest first. */
 export const SELECTED_PUBLICATIONS = SELECTED.map(({ key }) => {
   const publication = PUBLICATIONS.find((p) => p.key === key);
-  if (!publication) throw new Error(`data/selected.ts: no publication ${key} in hideo-bannai.bib`);
+  if (!publication) throw new Error(`data/selected.ts: no publication ${key} in hideo-bannai.bib or not-in-dblp.bib`);
   return publication;
 }).sort((a, b) => b.year - a.year);
 

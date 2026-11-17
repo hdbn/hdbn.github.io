@@ -17,6 +17,7 @@ English is at the root and Japanese under `/ja/`; the words on buttons and headi
 
 
 - `src/data/hideo-bannai.bib` — the publication list, a verbatim DBLP export. Replace it with a fresh export to update.
+- `src/data/not-in-dblp.bib` — papers DBLP does not list, written by hand in DBLP's style and read alongside the export.
 - `src/data/awards.ts` — award notes shown on papers, by BibTeX key.
 - `src/data/about/en.md`, `ja.md` — the About text on the home page, in Markdown, one file per language.
 - `src/data/profile.ts` — name, affiliation and links.

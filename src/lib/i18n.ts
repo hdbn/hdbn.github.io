@@ -19,7 +19,7 @@ export const ui = {
     },
     publications: {
       heading: 'Publications',
-      description: 'Publications of Hideo Bannai, from DBLP.',
+      description: 'Publications of Hideo Bannai, from DBLP and a few it does not list.',
       searchLabel: 'Search publications',
       searchPlaceholder: 'Title, co-author, venue, year',
       noMatches: 'Nothing matched.',
@@ -77,7 +77,7 @@ export const ui = {
     },
     publications: {
       heading: '論文',
-      description: '坂内英夫の論文一覧(DBLP より)。',
+      description: '坂内英夫の論文一覧(DBLP と、DBLP にない数編)。',
       searchLabel: '論文を検索',
       searchPlaceholder: 'タイトル・共著者・会議名・年',
       noMatches: '該当する論文はありません。',
