@@ -5,6 +5,7 @@ import katex from 'katex';
 import dblpBib from '../data/hideo-bannai.bib?raw';
 import localBib from '../data/not-in-dblp.bib?raw';
 import { AWARDS } from '../data/awards';
+import { CODE } from '../data/code';
 import { SELECTED } from '../data/selected';
 import { SUMMARIES } from '../data/summaries';
 import ABSTRACTS from '../data/abstracts.json';
@@ -139,7 +140,7 @@ function entryToPublication(entry: Entry): Publication {
     slides: slides ? [{ url: slides, format: fileFormat(slides) }] : (SLIDES_BY_KEY.get(entry.key) ?? []),
     links: {
       pdf: link('pdf'),
-      code: link('code'),
+      code: link('code') ?? CODE[entry.key],
       poster: link('poster'),
       doi: doi ? `https://doi.org/${doi}` : undefined,
       arxiv: arxivId ? `https://arxiv.org/abs/${arxivId}` : undefined,
@@ -225,15 +226,17 @@ function loadPublications(entries: Entry[]): Publication[] {
     if (current && !pub.formerTitle && normalizeTitle(current) !== normalizeTitle(pub.title)) pub.arxivTitle = current;
   }
 
-  // A paper's line and abstract, each written once under any one of its
-  // versions' keys, go on all of them: the conference and journal versions,
-  // and the preprint.
+  // A paper's line, abstract, topics and code, each written once under any
+  // one of its versions' keys, go on all of them: the conference and journal
+  // versions, and the preprint.
   const abstracts: Record<string, string> = ABSTRACTS;
   for (const group of publishedByTitle.values()) {
     const summary = group.map((p) => SUMMARIES[p.key]).find(Boolean);
     const abstract = group.map((p) => p.abstract ?? abstracts[p.key]).find(Boolean);
     const tags = group.map((p) => PAPER_TAGS[p.key]).find(Boolean) ?? [];
+    const code = group.map((p) => p.links.code).find(Boolean);
     for (const pub of group) {
+      pub.links.code ??= code;
       pub.summary = summary;
       pub.abstract = abstract;
       pub.tags = tags;
