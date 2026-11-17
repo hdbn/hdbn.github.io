@@ -1,12 +1,14 @@
 // Taken from the DSCalgo lab site's lib/bibtex.ts, cut down to one person's
 // bib file: the lab's member matching became `ME`.
 import { parse, type Creator, type Entry } from '@retorquere/bibtex-parser';
+import katex from 'katex';
 import dblpBib from '../data/hideo-bannai.bib?raw';
 import localBib from '../data/not-in-dblp.bib?raw';
 import { AWARDS } from '../data/awards';
 import { SELECTED } from '../data/selected';
 import { SUMMARIES } from '../data/summaries';
 import ABSTRACTS from '../data/abstracts.json';
+import ARXIV_TITLES from '../data/arxiv-titles.json';
 import { PAPER_TAGS, type Tag } from '../data/tags';
 import { TALKS, talkSlides } from '../data/talks';
 import { fileFormat, type SlideFile } from './files';
@@ -34,6 +36,13 @@ export interface Publication {
   tags: Tag[];
   /** From the entry's own `abstract` field, or data/abstracts.json; LaTeX mathematics in `$…$`. */
   abstract?: string;
+  /**
+   * A preprint's title in DBLP, when it has since been changed on arXiv; the
+   * title is then arXiv's, which has `$…$` mathematics.
+   */
+  formerTitle?: string;
+  /** The title on arXiv of the preprint linked, when it is not this version's own. */
+  arxivTitle?: string;
   /** Set on a non-journal entry when a journal version of the same paper also exists. */
   journalVersion?: { venue?: string; year: number; url?: string };
   type: PublicationType;
@@ -48,6 +57,8 @@ export interface Publication {
   };
   /** The entry's original BibTeX source text, for a "cite this" display. */
   rawBibtex: string;
+  /** The arXiv id of the preprint linked. */
+  arxivId?: string;
 }
 
 /** The author to set in bold, as DBLP writes the name. */
@@ -109,6 +120,10 @@ function entryToPublication(entry: Entry): Publication {
   const link = (name: string) => custom[name]?.replace(/\\([_&%#$])/g, '$1');
   const slides = link('slides');
   const doi = link('doi');
+  // DBLP exports arXiv preprints as eprinttype=arXiv + eprint=<id>, rather
+  // than a plain `arxiv` field.
+  const arxivId =
+    link('arxiv') ?? (custom.eprinttype?.toLowerCase() === 'arxiv' && custom.eprint ? link('eprint') : undefined);
 
   return {
     key: entry.key,
@@ -127,21 +142,29 @@ function entryToPublication(entry: Entry): Publication {
       code: link('code'),
       poster: link('poster'),
       doi: doi ? `https://doi.org/${doi}` : undefined,
-      // DBLP exports arXiv preprints as eprinttype=arXiv + eprint=<id>, rather
-      // than a plain `arxiv` field.
-      arxiv: link('arxiv')
-        ? `https://arxiv.org/abs/${link('arxiv')}`
-        : custom.eprinttype?.toLowerCase() === 'arxiv' && custom.eprint
-          ? `https://arxiv.org/abs/${link('eprint')}`
-          : undefined,
+      arxiv: arxivId ? `https://arxiv.org/abs/${arxivId}` : undefined,
     },
     rawBibtex: entry.input.trim(),
+    arxivId: arxivId?.replace(/v\d+$/, ''),
   };
 }
 
+/**
+ * A title reduced to its letters and digits, to match versions of a paper:
+ * DBLP's ("Thue-Morse", "O(n log n)") and arXiv's ("Thue--Morse",
+ * "$O(n \\log n)$") alike.
+ */
 function normalizeTitle(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return title
+    .replace(/<\/?(?:i|b|sub|sup)>/g, '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
+
+/** The title a preprint has on arXiv now (data/arxiv-titles.json, from scripts/arxiv-titles.mjs). */
+const arxivTitles: Record<string, string> = ARXIV_TITLES;
 
 function parseBib(name: string, source: string): Entry[] {
   // DBLP's exports are already correctly capitalized; the parser's default
@@ -170,17 +193,36 @@ function loadPublications(entries: Entry[]): Publication[] {
 
   // DBLP files an arXiv preprint as its own "CoRR" entry even once the paper
   // has a published venue. Fold that entry's arXiv link into the published
-  // version(s) with a matching title instead of listing the preprint separately.
+  // version(s) with a matching title instead of listing the preprint
+  // separately: matching DBLP's title for it, that of its first version, or
+  // the title it has on arXiv now, which a later version often takes from
+  // the journal version.
   for (const entry of corrEntries) {
     const corrPub = entryToPublication(entry);
-    const matches = publishedByTitle.get(normalizeTitle(corrPub.title));
-    if (matches) {
+    const current = corrPub.arxivId ? arxivTitles[corrPub.arxivId] : undefined;
+    const keys = new Set([corrPub.title, current].filter((t): t is string => !!t).map(normalizeTitle));
+    const matches = new Set([...keys].flatMap((key) => publishedByTitle.get(key) ?? []));
+    if (matches.size > 0) {
       for (const match of matches) {
-        match.links.arxiv ??= corrPub.links.arxiv;
+        if (match.links.arxiv) continue;
+        match.links.arxiv = corrPub.links.arxiv;
+        match.arxivId = corrPub.arxivId;
       }
     } else {
+      // On its own, a preprint goes by the title it has now.
+      if (current && normalizeTitle(current) !== normalizeTitle(corrPub.title)) {
+        corrPub.formerTitle = corrPub.title;
+        corrPub.title = current;
+      }
       publications.push(corrPub);
     }
+  }
+
+  // A version whose arXiv preprint now goes by another title (an extended
+  // version, or one titled as the journal version) says so by its link.
+  for (const pub of publications) {
+    const current = pub.arxivId ? arxivTitles[pub.arxivId] : undefined;
+    if (current && !pub.formerTitle && normalizeTitle(current) !== normalizeTitle(pub.title)) pub.arxivTitle = current;
   }
 
   // A paper's line and abstract, each written once under any one of its
@@ -270,11 +312,22 @@ export const SELECTED_PUBLICATIONS = SELECTED.map(({ key }) => {
 
 /**
  * A title as HTML. The parser turns LaTeX markup into tags (\emph{r} → <i>r</i>,
- * ^{1.5} → <sup>); keep those few and escape everything else.
+ * ^{1.5} → <sup>); keep those few and escape everything else. A title from
+ * arXiv has its mathematics in `$…$`, set by KaTeX when the site is built,
+ * and LaTeX's dashes.
  */
 export function titleHtml(title: string): string {
-  const escaped = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return escaped.replace(/&lt;(\/?)(i|b|sub|sup)&gt;/g, '<$1$2>');
+  return title
+    .split(/(\$[^$]+?\$)/)
+    .map((part, i) => {
+      if (i % 2 === 1) return katex.renderToString(part.slice(1, -1), { throwOnError: false, output: 'html' });
+      const escaped = part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return escaped
+        .replace(/&lt;(\/?)(i|b|sub|sup)&gt;/g, '<$1$2>')
+        .replace(/---/g, '—')
+        .replace(/--/g, '–');
+    })
+    .join('');
 }
 
 export function groupByYear(publications: Publication[]): { year: number; items: Publication[] }[] {

@@ -47,6 +47,11 @@ const journalVersionText = publication.journalVersion
     </span>
     <Fragment set:html={titleHtml(publication.title)} />
   </h3>
+  {publication.formerTitle && (
+    <p class="mt-0.5 text-xs text-ink-muted">
+      {t.publications.formerTitle} <Fragment set:html={titleHtml(publication.formerTitle)} />
+    </p>
+  )}
   <p class="mt-1 text-sm text-ink-muted">
     {publication.authors.map((author, i) => (
       <>
@@ -75,6 +80,12 @@ const journalVersionText = publication.journalVersion
       ) : (
         journalVersionText
       )}
+    </p>
+  )}
+  {publication.arxivTitle && publication.links.arxiv && (
+    <p class="mt-1 text-xs text-ink-muted">
+      {t.publications.arxivVersion}{' '}
+      <a href={publication.links.arxiv} class="text-brand hover:underline"><Fragment set:html={titleHtml(publication.arxivTitle)} /></a>
     </p>
   )}
   <div class="mt-1.5 flex flex-wrap items-center gap-3">
